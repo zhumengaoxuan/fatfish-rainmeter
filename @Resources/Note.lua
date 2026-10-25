@@ -368,7 +368,7 @@ local function computePitch(r, ch, header, bottom, gapY)
 end
 
 local function buildColumns()
-    local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG or (FAVUI and FAVUI.drag)
+    local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG or (FAVUI and (FAVUI.drag or FAVUI.dropping))
     if not dragging then
         -- 只裁尾部空行列；中间空列代表「该日无便签」，必须保留，否则日期错位
         local lastCol = 0
@@ -1977,6 +1977,19 @@ local function favHideAll()
     end
 end
 
+
+-- 遮罩与拦截层跟随当前窗口尺寸（新建列导致窗口变宽时调用）
+function favMaskFit()
+    local w = tonumber(SKIN:GetVariable('SW')) or 560
+    local h = tonumber(SKIN:GetVariable('SH')) or 380
+    setOpt('FavMask', 'X', 0); setOpt('FavMask', 'Y', 0)
+    setOpt('FavMask', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill Color 8,10,18,170 | StrokeWidth 0')
+    setOpt('FavBlocker', 'X', 0); setOpt('FavBlocker', 'Y', 0)
+    setOpt('FavBlocker', 'W', w); setOpt('FavBlocker', 'H', h)
+    SKIN:Bang('!UpdateMeter', 'FavMask')
+    SKIN:Bang('!UpdateMeter', 'FavBlocker')
+end
+
 function favRender()
     local w = tonumber(SKIN:GetVariable('SW')) or 560
     local h = tonumber(SKIN:GetVariable('SH')) or 380
@@ -1998,12 +2011,8 @@ function favRender()
     local py = rnd((h - ph) / 2)
     FAVUI.panel = { x = px, y = py, w = pw, h = ph }
 
-    setOpt('FavBlocker', 'X', 0); setOpt('FavBlocker', 'Y', 0)
-    setOpt('FavBlocker', 'W', w); setOpt('FavBlocker', 'H', h)
     show('FavBlocker')
-    setOpt('FavMask', 'X', 0); setOpt('FavMask', 'Y', 0)
-    setOpt('FavMask', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale)
-        .. ' | Fill Color 8,10,18,170 | StrokeWidth 0')
+    favMaskFit()
     show('FavMask')
 
     setOpt('FavPanel', 'X', px); setOpt('FavPanel', 'Y', py)
@@ -2142,7 +2151,18 @@ end
 function favIsOpen() return favOpen end
 
 -- ===== 收藏拖出：拖到列 = 恢复，拖到新建框 = 直接删除 =====
-local function favZoneHit(x, y)
+local 
+-- 靠近窗口右边缘时，把落点推到「下一列」，不用精确越过列边界
+function favEdgeX(x)
+    local w = tonumber(SKIN:GetVariable('SW')) or 560
+    if x and x > w - rnd(40 * scale) then
+        local margin, cardW, gapX = metrics()
+        return margin + cols * (cardW + gapX) + rnd(4)
+    end
+    return x
+end
+
+function favZoneHit(x, y)
     local z = lastZone
     return z and x >= z.x and x <= z.x + z.w and y >= z.y and y <= z.y + z.h
 end
@@ -2213,6 +2233,7 @@ function dragFav(x, y)
     local gh = r0 and r0.h or rnd(50 * scale)
     local gx = x + rnd(12 * scale)
     local gy = y + rnd(12 * scale)
+    local ex = favEdgeX(x)
     local z = favZoneHit(x, y)
     if z then
         favZonePaint(true)
@@ -2230,10 +2251,11 @@ function dragFav(x, y)
     end
     favZonePaint(false)
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
-    local c, r, ok = targetCell(x, y)
+    local c, r, ok = targetCell(ex, y)
     if ok and (not c or c < 1) then
         layout()
-        c, r, ok = targetCell(x, y)
+        favMaskFit()
+        c, r, ok = targetCell(ex, y)
     end
     if ok and c and c >= 1 then
         -- 和拖便签一致：高亮目标格，而不是整列
@@ -2267,6 +2289,7 @@ function favDrop(x, y)
     hide('GhostCard'); hide('GhostName'); hide('GhostText')
     favZonePaint(false)
     FAVUI.drag = nil
+    FAVUI.dropping = true          -- 落点计算期间仍算「拖拽中」，否则 buildColumns 会裁掉新列
     FAVUI.justDropped = os.clock()
     local list = favLoad()
     local idx = favPage * FAV_PER + i + 1
@@ -2274,6 +2297,7 @@ function favDrop(x, y)
     local inPanel = pnl and x and y and x >= pnl.x and x <= pnl.x + pnl.w and y >= pnl.y and y <= pnl.y + pnl.h
     if not FAVUI.moved or inPanel then
         -- 只是轻拖或在面板内松手：不改变收藏状态
+        FAVUI.dropping = nil
         newZoneReset()
         if favOpen then favRender() end
         SKIN:Bang('!Redraw')
@@ -2283,15 +2307,21 @@ function favDrop(x, y)
     if x and y and favZoneHit(x, y) then
         favDelete(idx)                    -- 写回收记录后删除
     else
-        local c, r, ok = targetCell(x or 0, y or 0)
+        local ex = favEdgeX(x or 0)
+        local c, r, ok = targetCell(ex, y or 0)
         if ok and (not c or c < 1) then
-            layout()                      -- 目标列越界时 targetCell 会先建列，需重算
-            c, r, ok = targetCell(x or 0, y or 0)
+            -- 刚建的列就是目标列；列宽会随列数变化，不能拿旧 ex 重算
+            layout()
+            favMaskFit()
+            c = cols
+            r = math.max(1, r or 1)
+            ok = true
         end
         if ok and c and c >= 1 then
             favRestore(idx, colDate(c), r)   -- 落到目标列的那一格
         end
     end
+    FAVUI.dropping = nil
     newZoneReset()
     if favOpen then favRender() end
     SKIN:Bang('!UpdateMeter', '*')
