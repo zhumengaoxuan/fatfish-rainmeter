@@ -2181,9 +2181,13 @@ local
 -- 新建区恢复成默认样式（颜色 + 文字），关闭面板和结束拖拽都要调
 function newZoneReset()
     if not lastZone then return end
-    setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
+    -- 面板开着时保持压暗，别把颜色顶回高亮
+    local dim = FAVUI and FAVUI.dimTop
+    local strokeA = dim and 12 or 30
+    local textA = dim and 90 or 255
+    setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,' .. strokeA)
     setOpt('NewZoneText', 'Text', '拖出新便签')
-    setOpt('NewZoneText', 'FontColor', '235,238,245,255')
+    setOpt('NewZoneText', 'FontColor', '235,238,245,' .. textA)
     SKIN:Bang('!UpdateMeter', 'NewZone')
     SKIN:Bang('!UpdateMeter', 'NewZoneText')
 end

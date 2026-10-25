@@ -1,10 +1,10 @@
 #FatFishNote v3
-#grid cols=2 rows=3 scale=1.11
+#grid cols=2 rows=4 scale=1.11
 #theme 1
 #page 0
 2026-10-25	节气口径	霜降 10/23 交节，到立冬前都挂霜降；多天显示同名不是 bug，插件给的其实是「第N天」	user	1
-2026-10-25	文本滚动	便签正文超出卡片高度时加滚动：滚轮 或 自动缓慢滚动；用 Container 裁剪 + 改 Text 的 Y 偏移，到顶/到底停住	user	1
-2026-10-25	订货	确认下单数量	user	1
 2026-10-26	到货	核对到货清单	auto	1
-2026-10-26	右键复制	右键拖便签=复制并移动：MeasureMouse 的 RightMouseDragAction（须 Start）+ 卡片 RightMouseDown 记索引 + COPY 状态位，松手在目标列插入副本	user	1
 2026-10-26	文本滚动	便签正文超出卡片高度时加滚动：滚轮 或 自动缓慢滚动；用 Container 裁剪 + 改 Text 的 Y 偏移，到顶/到底停住	user	1
+2026-10-26	右键复制	右键拖便签=复制并移动：MeasureMouse 的 RightMouseDragAction（须 Start）+ 卡片 RightMouseDown 记索引 + COPY 状态位，松手在目标列插入副本	user	1
+2026-10-26	订货	确认下单数量	user	1
+2026-10-27	订货	确认下单数量	auto	1
