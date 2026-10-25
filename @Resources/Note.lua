@@ -1861,6 +1861,7 @@ end
 
 -- ★ 的呼吸效果：FontColor 里的节变量在 String 上不刷新，改由 Lua 每 tick 设置
 function favPulseTick()
+    if FAVUI and FAVUI.dimTop then return end
     local a = math.floor(165 + 90 * math.sin(os.clock() * 2 * math.pi / 3.2))
     if a < 75 then a = 75 elseif a > 255 then a = 255 end
     setOpt('FavBtn', 'FontColor', '205,195,255,' .. a)
@@ -2343,6 +2344,26 @@ end
 
 
 -- 收藏面板打开时统一关掉底层米特的 tooltip（ToolTipHidden=1），关闭时恢复
+
+-- 面板打开时，把位于遮罩之上的节点（新建区文字/边框、★）压成半透明，视觉上被盖住
+function favDimTop(on)
+    FAVUI.dimTop = on and true or false
+    if on then
+        setOpt('NewZoneText', 'FontColor', '235,238,245,90')
+        setOpt('NewZoneHint', 'FontColor', '235,238,245,50')
+        setOpt('FavBtn', 'FontColor', '205,195,255,90')
+        setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. (lastZone and lastZone.w or 178) .. ',' .. (lastZone and lastZone.h or 44) .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,12')
+    else
+        setOpt('NewZoneText', 'FontColor', '235,238,245,255')
+        setOpt('NewZoneHint', 'FontColor', '235,238,245,110')
+        setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. (lastZone and lastZone.w or 178) .. ',' .. (lastZone and lastZone.h or 44) .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
+        setOpt('FavBtn', 'FontColor', '205,195,255,255')
+    end
+    for _, n in ipairs({ 'NewZone', 'NewZoneText', 'NewZoneHint', 'FavBtn' }) do
+        SKIN:Bang('!UpdateMeter', n)
+    end
+end
+
 function favTipsHidden(hide)
     local names = {}
     for i = 0, MAXN - 1 do
@@ -2368,6 +2389,7 @@ function favToggle()
         FAVUI.skipUntil = os.clock() + 0.35
         -- 遮罩挡不住下层命中（实测），用 ToolTipHidden 统一关掉底层提示
         favTipsHidden(true)
+        favDimTop(true)
         hoverIdx = -1
         for k = 1, 4 do hide('Sw_' .. k) end
         hide('SelRing')
@@ -2378,6 +2400,7 @@ function favToggle()
         hideGhost(); hide('DropHint')
         newZoneReset()
         favTipsHidden(false)
+        favDimTop(false)
         leaveFav()
         favHideAll()
         SKIN:Bang('!Redraw')
