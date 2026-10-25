@@ -2231,11 +2231,16 @@ function dragFav(x, y)
     favZonePaint(false)
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
     local c, r, ok = targetCell(x, y)
+    if ok and (not c or c < 1) then
+        layout()
+        c, r, ok = targetCell(x, y)
+    end
     if ok and c and c >= 1 then
-        local margin, cardW, gapX, header = metrics()
-        local hx = margin + (c - 1) * (cardW + gapX)
-        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. rnd(header - 4) .. ',8 | Fill Color 120,220,255,26 | StrokeWidth 2 | Stroke Color 120,220,255,190')
-        setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', 0)
+        -- 和拖便签一致：高亮目标格，而不是整列
+        local _, cardW = metrics()
+        local hx, hy = slotPos(r, c)
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+        setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
         show('DropHint')
         SKIN:Bang('!UpdateMeter', 'DropHint')
         FAVUI.dropCol = c
