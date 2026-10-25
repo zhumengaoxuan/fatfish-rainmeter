@@ -2289,7 +2289,7 @@ function favDrop(x, y)
             c, r, ok = targetCell(x or 0, y or 0)
         end
         if ok and c and c >= 1 then
-            favRestore(idx, colDate(c))   -- 取消收藏并落到该列日期
+            favRestore(idx, colDate(c), r)   -- 落到目标列的那一格
         end
     end
     newZoneReset()
@@ -2395,18 +2395,23 @@ function favDelete(idx)
     favRender()
 end
 
-function favRestore(idx, date)
+function favRestore(idx, date, row)
     idx = tonumber(idx)
     local list = favLoad()
     if not idx or not list[idx] then return end
     local it = table.remove(list, idx)
     date = date or todayStr()
     local note = { date = date, name = it.name, text = it.text, src = 'user', theme = it.theme or 1 }
-    local ins = #notes + 1
-    for i = 1, #notes do
-        if (notes[i].date or '') > date then ins = i break end
+    -- 指定了目标格就用 insertAt，和拖卡片落点一致
+    if row then
+        insertAt(date, tonumber(row) or 1, note)
+    else
+        local ins = #notes + 1
+        for i = 1, #notes do
+            if (notes[i].date or '') > date then ins = i break end
+        end
+        table.insert(notes, ins, note)
     end
-    table.insert(notes, ins, note)
     count = #notes
     favWrite(list)
     writeAll()

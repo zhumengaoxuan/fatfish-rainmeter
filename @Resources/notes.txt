@@ -2,9 +2,9 @@
 #grid cols=2 rows=5 scale=1.11
 #theme 1
 #page 0
-#autoskip 2026-10-25
 #autoskip 2026-10-26
 #autoskip 2026-10-27
+#autoskip 2026-10-25
 2026-10-26	收藏拖出	设计拖出恢复与拖入删除：FAVUI.drag 状态、MeasureMouse 驱动、列头高亮、文字切「直接删除」，待确认三处细节	user	1
 2026-10-26	文本滚动	便签正文超出卡片高度时加滚动：滚轮 或 自动缓慢滚动；用 Container 裁剪 + 改 Text 的 Y 偏移，到顶/到底停住	user	1
 2026-10-26	便签收藏	设计收藏方案：拖动便签进新建框即收藏；加收藏按钮；点击打开收藏列表	user	1
