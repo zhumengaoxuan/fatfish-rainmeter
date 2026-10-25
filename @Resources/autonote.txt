@@ -1,12 +1,12 @@
-#modes monthly,interval
-#mode monthly
+#modes interval,monthly
+#mode interval
 #cycle 2
 #base 2026-10-28
-#dday 1
-#dname 交周报
-#dtext 整理本周进度并发给组长
-#ttext 写一篇对小帆的看法：我讨厌什么、在意什么、怎么判断好坏；写完交给肥鱼落进规则
-#interval 7
-#tname 写观感
 1	订货	确认下单数量
 2	到货	核对到货清单
+#interval 7
+#tname 写观感
+#ttext 写一篇对小帆的看法：我讨厌什么、在意什么、怎么判断好坏；写完交给肥鱼落进规则
+#dday 1
+#dname 写观感
+#dtext 写一篇对小帆的看法：我讨厌什么、在意什么、怎么判断好坏；写完交给肥鱼落进规则
