@@ -1861,7 +1861,7 @@ end
 
 -- ★ 的呼吸效果：FontColor 里的节变量在 String 上不刷新，改由 Lua 每 tick 设置
 function favPulseTick()
-    local a = math.floor(165 + 90 * math.sin(os.clock() * 2 * math.pi / 5.8))
+    local a = math.floor(165 + 90 * math.sin(os.clock() * 2 * math.pi / 3.2))
     if a < 75 then a = 75 elseif a > 255 then a = 255 end
     setOpt('FavBtn', 'FontColor', '205,195,255,' .. a)
     SKIN:Bang('!UpdateMeter', 'FavBtn')
