@@ -2217,7 +2217,8 @@ function favDragStart(i)
     setOpt('GhostName', 'FontSize', rnd(9 * scale))
     show('GhostCard'); show('GhostName')
     hide('GhostText')
-    favZonePaint(false)
+    -- 起拖瞬间就把上面的新建区改成「直接删除」的红色态
+    favZonePaint(true)
 end
 
 function dragFav(x, y)
@@ -2249,7 +2250,7 @@ function dragFav(x, y)
         SKIN:Bang('!Redraw')
         return
     end
-    favZonePaint(false)
+    favZonePaint(true)
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
     local c, r, ok = targetCell(ex, y)
     if ok and (not c or c < 1) then
