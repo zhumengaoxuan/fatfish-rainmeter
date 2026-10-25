@@ -2182,7 +2182,10 @@ function favDragStart(i)
     if not it then return end
     FAVUI.drag = i
     FAVUI.grabDX = nil
+    FAVUI.grabDY = nil
     FAVUI.originX = nil
+    FAVUI.originY = nil
+    FAVUI.visited = false
     FAVUI.moved = false
     FAVUI.dragText = it.text
     FAVUI.dragName = it.name
@@ -2199,19 +2202,18 @@ function favDragStart(i)
 end
 
 function dragFav(x, y)
-    if not FAVUI.originX then FAVUI.originX, FAVUI.originY = x, y end
+    if not FAVUI.visited then
+        FAVUI.originX, FAVUI.originY = x, y
+        FAVUI.visited = true
+    end
     local dx, dy = x - FAVUI.originX, y - FAVUI.originY
     if math.sqrt(dx * dx + dy * dy) > 8 then FAVUI.moved = true end
-    -- 预览框保持「按下时指针在行内的相对位置」，拖到哪都贴合手感
+    -- 预览框固定贴在指针右下，位置只由指针决定，不受历史状态影响
     local r0 = FAVUI.rect[FAVUI.drag]
     local gw = r0 and r0.w or rnd(240 * scale)
     local gh = r0 and r0.h or rnd(50 * scale)
-    if r0 and not FAVUI.grabDX then
-        FAVUI.grabDX = (FAVUI.originX or x) - r0.x
-        FAVUI.grabDY = (FAVUI.originY or y) - r0.y
-    end
-    local gx = x - (FAVUI.grabDX or gw / 2)
-    local gy = y - (FAVUI.grabDY or gh / 2)
+    local gx = x + rnd(12 * scale)
+    local gy = y + rnd(12 * scale)
     local z = favZoneHit(x, y)
     if z then
         favZonePaint(true)
@@ -2276,6 +2278,10 @@ function favDrop(x, y)
         favDelete(idx)                    -- 写回收记录后删除
     else
         local c, r, ok = targetCell(x or 0, y or 0)
+        if ok and (not c or c < 1) then
+            layout()                      -- 目标列越界时 targetCell 会先建列，需重算
+            c, r, ok = targetCell(x or 0, y or 0)
+        end
         if ok and c and c >= 1 then
             favRestore(idx, colDate(c))   -- 取消收藏并落到该列日期
         end
