@@ -629,7 +629,7 @@ local function layout()
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
-    setOpt('FavBtn', 'X', rnd(w / 2 + 96 * scale)); setOpt('FavBtn', 'Y', rnd(20 * scale)); setOpt('FavBtn', 'FontSize', rnd(21 * scale))
+    setOpt('FavBtn', 'X', rnd(w / 2 + 96 * scale)); setOpt('FavBtn', 'Y', rnd(24 * scale)); setOpt('FavBtn', 'FontSize', rnd(21 * scale))
 
 
     setOpt('ClockText', 'X', w - rnd(28 * scale)); setOpt('ClockText', 'StringAlign', 'RightTop'); setOpt('ClockText', 'Y', rnd(3 * scale)); setOpt('ClockText', 'FontSize', rnd(26 * scale)); setOpt('ClockText', 'StringAlign', 'RightTop'); setOpt('ClockText', 'W', rnd(140 * scale))
