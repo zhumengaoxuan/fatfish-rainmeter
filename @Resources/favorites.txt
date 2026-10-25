@@ -1,2 +1,3 @@
 #FatFishNote favorites v1
 右键复制	右键拖便签=复制并移动：MeasureMouse 的 RightMouseDragAction（须 Start）+ 卡片 RightMouseDown 记索引 + COPY 状态位，松手在目标列插入副本	1	2026-10-25
+到货	核对到货清单	1	2026-10-25

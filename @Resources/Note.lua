@@ -2165,7 +2165,6 @@ function favZonePaint(active)
         setOpt('NewZoneText', 'FontColor', '255,150,150,255')
     else
         newZoneReset()
-        if FAVUI.drag then setOpt('NewZoneText', 'Text', 'ж╠╫си╬ЁЩ') end
     end
     SKIN:Bang('!UpdateMeter', 'NewZone')
     SKIN:Bang('!UpdateMeter', 'NewZoneText')
