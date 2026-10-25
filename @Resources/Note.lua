@@ -512,6 +512,9 @@ local function placeSwatches(m)
 end
 
 function hoverCard(m)
+    if boardLocked() then return end
+    -- 正在拖某张便签时，其它卡片的悬浮一律不响应（否则会残留选中框/色板，卡片还会闪一下）
+    if (dragIdx and dragIdx >= 1) or NEW_DRAG then return end
     m = tonumber(m) or -1
     hoverIdx = m
     SKIN:Bang('!CommandMeasure', 'SwTimer', 'Stop 1')
@@ -525,6 +528,8 @@ function swatchHover()
 end
 
 function leaveCard(mx, my)
+    if boardLocked() then return end
+    if (dragIdx and dragIdx >= 1) or NEW_DRAG then return end
     swHidePending()
 end
 
@@ -538,7 +543,12 @@ function swHidePending()
 end
 
 function swatchClick(k)
-    if hoverIdx >= 0 then setCardTheme(hoverIdx, k) end
+    -- favOpen 是后声明的 local，这里的自由变量会解析成全局，必须走函数查询
+    if favIsOpen() then
+        setFavTheme(k)
+    elseif hoverIdx >= 0 then
+        setCardTheme(hoverIdx, k)
+    end
 end
 
 local cardNote = {}
@@ -568,6 +578,9 @@ local function updateCard(i, c, r)
     setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale))
     setOpt('Name' .. m, 'Text', notes[i].name)
     setOpt('Text' .. m, 'Text', notes[i].text)
+    for _, pfx in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do
+        SKIN:Bang('!UpdateMeter', pfx .. m)
+    end
     show('Card' .. m); show('Head' .. m); show('Name' .. m); show('Del' .. m)
 
     if i == editIdx and editMode == 0 then hide('Text' .. m) else show('Text' .. m) end
@@ -616,6 +629,7 @@ local function layout()
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
+    setOpt('FavBtn', 'X', rnd(w / 2 + 96 * scale)); setOpt('FavBtn', 'Y', rnd(20 * scale)); setOpt('FavBtn', 'FontSize', rnd(14 * scale))
 
 
     setOpt('ClockText', 'X', w - rnd(28 * scale)); setOpt('ClockText', 'StringAlign', 'RightTop'); setOpt('ClockText', 'Y', rnd(3 * scale)); setOpt('ClockText', 'FontSize', rnd(26 * scale)); setOpt('ClockText', 'StringAlign', 'RightTop'); setOpt('ClockText', 'W', rnd(140 * scale))
@@ -795,6 +809,7 @@ local function layout()
     setOpt('NewZoneHint', 'X', w / 2); setOpt('NewZoneHint', 'Y', zy + rnd(25 * scale)); setOpt('NewZoneHint', 'FontSize', rnd(7 * scale))
     setOpt('NewZoneText', 'FontSize', rnd(8 * scale))
     hide('NewZoneHint')
+    lastZone = { x = zx, y = zy, w = zw, h = rnd(40 * scale) }
     if page == 0 then show('NewZone'); show('NewZoneText') else hide('NewZone'); hide('NewZoneText') end
     -- 右栏两行（时钟下方，右对齐）
     -- 右栏定位由 marqueeApply 统一处理
@@ -926,9 +941,11 @@ function select(i)
 end
 
 function pagePrev()
+    if boardLocked() then return end
     if page < PAGE_MAX then page = page + 1; writeAll(); layout(); autoGen() end
 end
 function pageNext()
+    if boardLocked() then return end
     if page > 0 then page = page - 1; writeAll(); layout(); autoGen() end
 end
 
@@ -1001,6 +1018,7 @@ local function insertAt(date, row, note)
 end
 
 function beginNewDrag(mname, mx, my)
+    if boardLocked() then return end
     if page > 0 then return end
     NEW_DRAG = true
     local m = SKIN:GetMeter(tostring(mname))
@@ -1014,6 +1032,7 @@ function beginNewDrag(mname, mx, my)
     dragIdx = -1
 end
 function beginDrag(i, mname, mx, my)
+    if boardLocked() then return end
     i = tonumber(i); mx = tonumber(mx) or 0; my = tonumber(my) or 0
     if not canEdit() then return end
     if not i or i < 1 or i > count then return end
@@ -1032,6 +1051,11 @@ function beginDrag(i, mname, mx, my)
     grabDX, grabDY = downX - x, downY - y
     dragIdx = i; dragTo = 1; sel = i; pending = true
     ghostX, ghostY = x, y
+    -- 起拖瞬间清掉其它卡片留下的选中框与色板
+    for k = 1, 4 do hide('Sw_' .. k) end
+    hide('SelRing')
+    hoverIdx = -1
+    setOpt('NewZoneText', 'Text', '拖入收藏')
     ring()
 end
 
@@ -1049,6 +1073,11 @@ end
 function drag(x, y)
     x = tonumber(x); y = tonumber(y)
     if not x or not y then return end
+    lastDragX, lastDragY = x, y
+    if FAVUI and FAVUI.drag then
+        dragFav(x, y)
+        return
+    end
     if NEW_DRAG then
         if pending then
             local ddx, ddy = x - downX, y - downY
@@ -1127,8 +1156,33 @@ function drag(x, y)
 end
 
 function drop(mx, my)
+    if FAVUI and FAVUI.drag then
+        favDrop(mx, my)
+        return
+    end
+    -- 兜底：任何一次松手都把新建区文字复原
+    if not (dragIdx and dragIdx >= 1) then setOpt('NewZoneText', 'Text', '拖出新便签') end
     -- 点在卡片标题条右侧的四个色点上：切换配色，不进拖拽逻辑
     mx, my = tonumber(mx), tonumber(my)
+    -- 拖到「拖出新便签」框 = 收进收藏库
+    local cx, cy = mx, my
+    if (not cx or not cy) then cx, cy = lastDragX, lastDragY end
+    if cx and cy and dragIdx and dragIdx >= 1 and lastZone then
+        local z = lastZone
+        if cx >= z.x and cx <= z.x + z.w and cy >= z.y and cy <= z.y + z.h then
+            -- 关键：先清掉拖拽状态，否则 favAdd 里的 layout() 会把「拖拽中的那张」跳过更新，
+            -- 导致索引移位后的某张卡片停在隐藏状态，直到下一次 layout 才恢复
+            local dragI = dragIdx
+            dragIdx = -1
+            pending = false
+            favAdd(dragI)
+            hideGhost(); hide('DropHint')
+            setOpt('NewZoneText', 'Text', '拖出新便签')
+            dragIdx = -1; pending = false
+            return
+        end
+    end
+
     if mx and my and dragIdx and dragIdx >= 1 then
         local m = dragIdx - 1
         for k = 1, 4 do
@@ -1201,12 +1255,15 @@ function drop(mx, my)
         end
     end
     hideGhost()
+    setOpt('NewZoneText', 'Text', '拖出新便签')
     dragIdx = -1; pending = false; dragCol = nil
     writeAll()
     layout()
     -- 拖动已有便签到新日期后，同样为新日期补齐自动便签
     autoGen()
     layout()
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
 end
 
 -- ===== 编辑 =====
@@ -1402,6 +1459,80 @@ function reloadAuto()
     autoRules = nil
     loadAuto()
     autoGen()
+end
+
+-- ===== 自动便签配置接口（配置页 / agent 共用） =====
+local AUTO_KEYS = { modes=1, mode=1, cycle=1, base=1, interval=1,
+                    tname=1, ttext=1, dday=1, dname=1, dtext=1 }
+
+local function autoFile()
+    if not AUTO_FILE then pcall(autoPaths) end
+    return AUTO_FILE or AUTO_ALT
+end
+
+local function autoRaw()
+    local f = autoFile()
+    if not f then return '' end
+    return readFile(f) or ''
+end
+
+function autoDump()
+    local out = {}
+    for line in tostring(autoRaw()):gmatch('[^\r\n]+') do
+        if line:match('%S') then out[#out + 1] = line end
+    end
+    return table.concat(out, ' | ')
+end
+
+-- spec 形如 "modes=monthly;interval=7"，value 留空表示删掉该键
+function autoWrite(spec)
+    local f = autoFile()
+    if not f then return 'no-file' end
+    local kv = {}
+    for pair in tostring(spec or ''):gmatch('[^;]+') do
+        local k, v = pair:match('^%s*([%w_]+)%s*=%s*(.-)%s*$')
+        if k and AUTO_KEYS[k] then kv[k] = v end
+    end
+    if not next(kv) then return 'no-valid-key' end
+
+    local old = autoRaw()
+    if old ~= '' then
+        local b = io.open(f .. '.bak', 'wb')
+        if b then b:write(old); b:close() end
+    end
+
+    local lines, rules = {}, {}
+    for line in tostring(old):gmatch('[^\r\n]+') do
+        local k = line:match('^#([%w_]+)')
+        if k and AUTO_KEYS[k] then
+            if kv[k] ~= nil then
+                if kv[k] ~= '' then lines[#lines + 1] = '#' .. k .. ' ' .. kv[k] end
+                kv[k] = nil
+            else
+                lines[#lines + 1] = line
+            end
+        elseif line:match('%S') then
+            rules[#rules + 1] = line
+        end
+    end
+    for k, v in pairs(kv) do
+        if v ~= '' then lines[#lines + 1] = '#' .. k .. ' ' .. v end
+    end
+
+    local out = table.concat(lines, '\r\n')
+    if #rules > 0 then out = out .. '\r\n' .. table.concat(rules, '\r\n') end
+    out = out .. '\r\n'
+
+    local h = io.open(f, 'wb')
+    if not h then return 'write-failed' end
+    h:write(out)
+    h:close()
+
+    autoRules = nil
+    loadAuto()
+    autoGen()
+    layout()
+    return 'ok'
 end
 
 function autoGen()
@@ -1745,4 +1876,467 @@ function previewLong()
     WX.ww = estimateW(w, rnd(9 * scale))
     WX.wl = estimateW(l, rnd(9 * scale))
     marqueeApply()
+end
+
+-- ===== 收藏库 =====
+local FAV_FILE, FAV_ALT
+local function favPaths()
+    local d = resDir()
+    FAV_FILE = d .. 'favorites.txt'
+    FAV_ALT = d .. 'favorites_alt.txt'
+end
+pcall(favPaths)
+
+local FAV_MAX = 50
+local FAV_PER = 6
+local favorites = nil
+local favPage = 0
+local favOpen = false
+FAVUI = { ui = 'normal', hover = -1, rect = {} }
+
+function boardLocked()
+    return favOpen
+end
+
+local function favFile()
+    if not FAV_FILE then pcall(favPaths) end
+    return FAV_FILE or FAV_ALT
+end
+
+local function favRead()
+    local f = favFile()
+    local data = f and readFile(f) or ''
+    local list = {}
+    for line in tostring(data):gmatch('[^\r\n]+') do
+        if not line:match('^#') then
+            local nm, tx, th, at = line:match('^([^\t]*)\t([^\t]*)\t(%d)\t?(.*)$')
+            if nm and nm ~= '' then
+                list[#list + 1] = { name = nm, text = tx, theme = tonumber(th) or 1, at = at }
+            end
+        end
+    end
+    return list
+end
+
+local function favWrite(list)
+    local f = favFile()
+    local out = { '#FatFishNote favorites v1' }
+    for _, v in ipairs(list) do
+        out[#out + 1] = v.name .. '\t' .. v.text .. '\t' .. tostring(v.theme or 1) .. '\t' .. (v.at or '')
+    end
+    if f then
+        local fd = io.open(f, 'wb')
+        if fd then
+            fd:write(table.concat(out, '\r\n') .. '\r\n')
+            fd:close()
+        end
+    end
+    favorites = list
+end
+
+function favLoad()
+    if not favorites then favorites = favRead() end
+    return favorites
+end
+
+function favCount() return #favLoad() end
+
+local function favHideAll()
+    hide('FavMask'); hide('FavPanel'); hide('FavTitle'); hide('FavHint')
+    hide('FavPrev'); hide('FavNext'); hide('FavClose'); hide('FavEmpty'); hide('FavBlocker')
+    for i = 0, FAV_PER - 1 do
+        hide('FavShape' .. i); hide('FavText' .. i)
+    end
+end
+
+function favRender()
+    local w = tonumber(SKIN:GetVariable('SW')) or 560
+    local h = tonumber(SKIN:GetVariable('SH')) or 380
+    local list = favLoad()
+    local pages = math.max(1, math.ceil(#list / FAV_PER))
+    if favPage > pages - 1 then favPage = pages - 1 end
+    if favPage < 0 then favPage = 0 end
+
+    if FAVUI.hover < 0 then
+        hide('SelRing')
+        for k = 1, 4 do hide('Sw_' .. k) end
+    end
+    local shown = math.min(FAV_PER, math.max(0, #list - favPage * FAV_PER))
+    local pw = math.min(rnd(380 * scale), w - rnd(48 * scale))
+    local rowH = rnd(44 * scale)
+    local ph = rnd(74 * scale) + math.max(1, shown) * rowH + rnd(30 * scale)
+    if #list == 0 then ph = rnd(140 * scale) end
+    local px = rnd((w - pw) / 2)
+    local py = rnd((h - ph) / 2)
+
+    setOpt('FavBlocker', 'X', 0); setOpt('FavBlocker', 'Y', 0)
+    setOpt('FavBlocker', 'W', w); setOpt('FavBlocker', 'H', h)
+    show('FavBlocker')
+    setOpt('FavMask', 'X', 0); setOpt('FavMask', 'Y', 0)
+    setOpt('FavMask', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale)
+        .. ' | Fill Color 8,10,18,170 | StrokeWidth 0')
+    show('FavMask')
+
+    setOpt('FavPanel', 'X', px); setOpt('FavPanel', 'Y', py)
+    setOpt('FavPanel', 'Shape', 'Rectangle 0,0,' .. pw .. ',' .. ph .. ',' .. rnd(14 * scale)
+        .. ' | Fill Color 30,34,54,250 | StrokeWidth 1 | Stroke Color 176,158,255,70')
+    show('FavPanel')
+
+    setOpt('FavTitle', 'X', px + rnd(18 * scale)); setOpt('FavTitle', 'Y', py + rnd(16 * scale))
+    setOpt('FavTitle', 'FontSize', rnd(11 * scale))
+    setOpt('FavTitle', 'Text', '收藏 · ' .. #list .. ' 条')
+    show('FavTitle')
+
+    setOpt('FavClose', 'X', px + pw - rnd(20 * scale)); setOpt('FavClose', 'Y', py + rnd(18 * scale))
+    setOpt('FavClose', 'FontSize', rnd(10 * scale))
+    show('FavClose')
+
+    setOpt('FavHint', 'X', px + pw / 2); setOpt('FavHint', 'Y', py + ph - rnd(20 * scale))
+    setOpt('FavHint', 'FontSize', rnd(7 * scale))
+    setOpt('FavHint', 'Text', '点击恢复 · 右键删除 · 点空白关闭')
+    show('FavHint')
+
+    if #list == 0 then
+        setOpt('FavEmpty', 'X', px + pw / 2); setOpt('FavEmpty', 'Y', py + ph / 2)
+        setOpt('FavEmpty', 'FontSize', rnd(9 * scale))
+        setOpt('FavEmpty', 'Text', '还没有收藏的便签')
+        show('FavEmpty')
+    else
+        hide('FavEmpty')
+    end
+
+    for i = 0, FAV_PER - 1 do
+        local idx = favPage * FAV_PER + i + 1
+        local it = list[idx]
+        if it then
+            local ry = py + rnd(52 * scale) + i * rowH
+            local rw = pw - rnd(24 * scale)
+            local rh = rowH - rnd(6 * scale)
+            FAVUI.rect[i] = { x = px + rnd(12 * scale), y = ry, w = rw, h = rh,
+                              theme = clamp(tonumber(it.theme) or 1, 1, 4) }
+            local th = THEMES[FAVUI.rect[i].theme]
+            setOpt('FavShape' .. i, 'X', FAVUI.rect[i].x); setOpt('FavShape' .. i, 'Y', ry)
+            setOpt('FavShape' .. i, 'Shape', 'Rectangle 0,0,' .. rw .. ',' .. rh
+                .. ',' .. rnd(8 * scale) .. ' | Fill Color ' .. th.card .. ' | StrokeWidth 1 | Stroke Color ' .. th.stroke .. ')')
+            show('FavShape' .. i)
+            local label = 'FavText' .. i
+            setOpt(label, 'X', FAVUI.rect[i].x + rnd(10 * scale)); setOpt(label, 'Y', ry + rnd(5 * scale))
+            setOpt(label, 'W', rw - rnd(16 * scale))
+            setOpt(label, 'H', rh - rnd(8 * scale))
+            setOpt(label, 'FontSize', rnd(8 * scale))
+            setOpt(label, 'FontColor', th.head)
+            setOpt(label, 'ClipString', '1')
+            setOpt(label, 'Text', '[' .. it.name .. ']' .. '\n' .. it.text)
+            show(label)
+        else
+            hide('FavShape' .. i); hide('FavText' .. i)
+        end
+    end
+
+    if pages > 1 then
+        setOpt('FavPrev', 'X', px + pw - rnd(64 * scale)); setOpt('FavPrev', 'Y', py + rnd(18 * scale))
+        setOpt('FavPrev', 'Text', '▲'); setOpt('FavPrev', 'FontSize', rnd(9 * scale))
+        setOpt('FavPrev', 'FontColor', favPage > 0 and '235,238,245,230' or '235,238,245,70')
+        show('FavPrev')
+        setOpt('FavNext', 'X', px + pw - rnd(46 * scale)); setOpt('FavNext', 'Y', py + rnd(18 * scale))
+        setOpt('FavNext', 'Text', '▼'); setOpt('FavNext', 'FontSize', rnd(9 * scale))
+        setOpt('FavNext', 'FontColor', favPage < pages - 1 and '235,238,245,230' or '235,238,245,70')
+        show('FavNext')
+    else
+        hide('FavPrev'); hide('FavNext')
+    end
+
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+end
+
+function placeFavSwatches(i)
+    -- 只负责摆位置（不显示）；显示与更新由调用方统一批量做
+    local r = FAVUI.rect[i]
+    if not r then return end
+    local rad = math.max(3, rnd(7 * scale))
+    for k = 1, 4 do hide('Sw_' .. k) end
+    for k = 1, 4 do
+        local n = 'Sw_' .. k
+        setOpt(n, 'Shape', 'Ellipse ' .. rad .. ',' .. rad .. ',' .. rad .. ',' .. rad
+            .. ' | Fill Color ' .. SWATCH_COLORS[k] .. ',255 | StrokeWidth 0')
+        setOpt(n, 'X', r.x + r.w - rnd((24 + 18 * (5 - k)) * scale) - rad)
+        setOpt(n, 'Y', r.y + rnd(10 * scale) - rad)
+    end
+end
+
+function hoverFav(i)
+    if not favOpen then return end
+    -- 面板刚打开的 0.35 秒内忽略悬浮（鼠标多半已经压在某个条目上），
+    -- 之后正常响应，不再吞掉用户的第一次移动
+    if FAVUI.skipUntil and os.clock() < FAVUI.skipUntil then return end
+    i = tonumber(i) or 0
+    local r = FAVUI.rect[i]
+    if not r then return end
+    FAVUI.hover = i
+    local th = THEMES[clamp(r.theme or 1, 1, 4)]
+    local inset = rnd(2 * scale)
+    -- 1) 先藏
+    hide('SelRing')
+    for k = 1, 4 do hide('Sw_' .. k) end
+    -- 2) 再改几何
+    setOpt('SelRing', 'X', r.x - inset); setOpt('SelRing', 'Y', r.y - inset)
+    setOpt('SelRing', 'Shape', 'Rectangle 0,0,' .. (r.w + inset * 2) .. ',' .. (r.h + inset * 2)
+        .. ',' .. rnd(10 * scale) .. ' | Fill Color 0,0,0,0 | StrokeWidth ' .. math.max(1, rnd(2 * scale))
+        .. ' | Stroke Color ' .. th.accent .. ',255')
+    placeFavSwatches(i)
+    -- 3) 批量更新一次，再统一显示
+    SKIN:Bang('!UpdateMeter', '*')
+    show('SelRing')
+    for k = 1, 4 do show('Sw_' .. k) end
+    SKIN:Bang('!Redraw')
+end
+
+function leaveFav()
+    FAVUI.hover = -1
+    for k = 1, 4 do hide('Sw_' .. k) end
+    hide('SelRing')
+    SKIN:Bang('!Redraw')
+end
+
+function setFavTheme(k)
+    if not favOpen or not FAVUI.hover or FAVUI.hover < 0 then return end
+    local list = favLoad()
+    local idx = favPage * FAV_PER + FAVUI.hover + 1
+    if not list[idx] then return end
+    list[idx].theme = clamp(tonumber(k) or 1, 1, 4)
+    favWrite(list)
+    favRender()
+    hoverFav(FAVUI.hover)
+end
+
+function favIsOpen() return favOpen end
+
+-- ===== 收藏拖出：拖到列 = 恢复，拖到新建框 = 直接删除 =====
+local function favZoneHit(x, y)
+    local z = lastZone
+    return z and x >= z.x and x <= z.x + z.w and y >= z.y and y <= z.y + z.h
+end
+
+local function favZonePaint(active)
+    if active then
+        setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 200,60,60,40 | StrokeWidth 2 | Stroke Color 255,90,90,240')
+        setOpt('NewZoneText', 'Text', '直接删除')
+        setOpt('NewZoneText', 'FontColor', '255,150,150,255')
+    else
+        setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
+        setOpt('NewZoneText', 'Text', '直接删除')
+        setOpt('NewZoneText', 'FontColor', FAVUI and '235,238,245,255' or '235,238,245,255')
+    end
+    SKIN:Bang('!UpdateMeter', 'NewZone')
+    SKIN:Bang('!UpdateMeter', 'NewZoneText')
+end
+
+function favDragStart(i)
+    if not favOpen then return end
+    i = tonumber(i) or 0
+    local r = FAVUI.rect[i]
+    if not r then return end
+    local list = favLoad()
+    local idx = favPage * FAV_PER + i + 1
+    local it = list[idx]
+    if not it then return end
+    FAVUI.drag = i
+    FAVUI.dragText = it.text
+    FAVUI.dragName = it.name
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 255,120,120,200')
+    setOpt('GhostName', 'Text', it.name)
+    setOpt('GhostText', 'Text', it.text)
+    setOpt('GhostName', 'X', lastDragX and (lastDragX - rnd(60 * scale)) or 200)
+    setOpt('GhostName', 'Y', lastDragY and (lastDragY - rnd(30 * scale)) or 200)
+    setOpt('GhostName', 'StringAlign', 'CenterCenter')
+    setOpt('GhostName', 'FontSize', rnd(9 * scale))
+    show('GhostCard'); show('GhostName')
+    hide('GhostText')
+    favZonePaint(false)
+end
+
+function dragFav(x, y)
+    local z = favZoneHit(x, y)
+    if z then
+        favZonePaint(true)
+        hide('DropHint')
+        show('GhostCard'); show('GhostName')
+        setOpt('GhostCard', 'X', x - rnd(80 * scale)); setOpt('GhostCard', 'Y', y - rnd(20 * scale))
+        setOpt('GhostName', 'X', x); setOpt('GhostName', 'Y', y - rnd(6 * scale))
+        SKIN:Bang('!UpdateMeter', 'GhostCard')
+        SKIN:Bang('!UpdateMeter', 'GhostName')
+        SKIN:Bang('!Redraw')
+        return
+    end
+    favZonePaint(false)
+    local c, r, ok = targetCell(x, y)
+    if ok and c and c >= 1 then
+        local margin, cardW, gapX, header = metrics()
+        local hx = margin + (c - 1) * (cardW + gapX)
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. rnd(header - 4) .. ',8 | Fill Color 120,220,255,26 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+        setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', 0)
+        show('DropHint')
+        SKIN:Bang('!UpdateMeter', 'DropHint')
+        FAVUI.dropCol = c
+    else
+        hide('DropHint')
+        FAVUI.dropCol = nil
+    end
+    setOpt('GhostCard', 'X', x - rnd(80 * scale)); setOpt('GhostCard', 'Y', y - rnd(20 * scale))
+    setOpt('GhostName', 'X', x); setOpt('GhostName', 'Y', y - rnd(6 * scale))
+    SKIN:Bang('!UpdateMeter', 'GhostCard')
+    SKIN:Bang('!UpdateMeter', 'GhostName')
+    SKIN:Bang('!Redraw')
+end
+
+function favDrop(x, y)
+    local i = FAVUI.drag
+    if not i then return end
+    x = tonumber(x) or lastDragX
+    y = tonumber(y) or lastDragY
+    SKIN:Bang('!CommandMeasure', 'MeasureMouse', 'Stop')
+    hide('DropHint')
+    hide('GhostCard'); hide('GhostName'); hide('GhostText')
+    favZonePaint(false)
+    FAVUI.drag = nil
+    FAVUI.justDropped = os.clock()
+    local list = favLoad()
+    local idx = favPage * FAV_PER + i + 1
+    if not list[idx] then favRender(); return end
+    if x and y and favZoneHit(x, y) then
+        favDelete(idx)                    -- 写回收记录后删除
+    else
+        local c, r, ok = targetCell(x or 0, y or 0)
+        if ok and c and c >= 1 then
+            favRestore(idx, colDate(c))   -- 取消收藏并落到该列日期
+        end
+    end
+    setOpt('NewZoneText', 'Text', '拖出新便签')
+    setOpt('NewZoneText', 'FontColor', '235,238,245,255')
+    if favOpen then favRender() end
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+end
+
+function favToggle()
+    favOpen = not favOpen
+    if favOpen then
+        FAVUI.ui = 'fav'
+        FAVUI.hover = -1
+        FAVUI.skipUntil = os.clock() + 0.35
+        -- 遮罩挡不住下层命中（实测），tooltip 会滞留，打开时先清掉
+        FAVUI.tips = {}
+        for i = 0, MAXN - 1 do
+            local m = SKIN:GetMeter('Name' .. i)
+            if m then
+                local tip = m:GetOption('ToolTipText') or ''
+                if tip ~= '' then
+                    FAVUI.tips['Name' .. i] = tip
+                    setOpt('Name' .. i, 'ToolTipText', '')
+                end
+            end
+        end
+        hoverIdx = -1
+        for k = 1, 4 do hide('Sw_' .. k) end
+        hide('SelRing')
+        favRender()
+    else
+        FAVUI.ui = 'normal'
+        if FAVUI.tips then
+            for name, tip in pairs(FAVUI.tips) do setOpt(name, 'ToolTipText', tip) end
+            FAVUI.tips = nil
+        end
+        leaveFav()
+        favHideAll()
+        SKIN:Bang('!Redraw')
+    end
+end
+
+function favClose()
+    if FAVUI.tips then
+        for name, tip in pairs(FAVUI.tips) do setOpt(name, 'ToolTipText', tip) end
+        FAVUI.tips = nil
+    end
+    favOpen = false
+    FAVUI.hover = -1
+    FAVUI.ui = 'normal'
+    leaveFav()
+    favHideAll()
+    SKIN:Bang('!Redraw')
+end
+
+function favPageBy(d)
+    favPage = favPage + (tonumber(d) or 0)
+    favRender()
+end
+
+function favAdd(i)
+    i = tonumber(i)
+    if not i or not notes[i] then return false end
+    local list = favLoad()
+    if #list >= FAV_MAX then
+        SKIN:Bang('!Log', '收藏库已满（' .. FAV_MAX .. '）', 'Notice')
+        return false
+    end
+    local n = notes[i]
+    list[#list + 1] = { name = n.name, text = n.text, theme = n.theme or 1, at = todayStr() }
+    favWrite(list)
+    table.remove(notes, i)
+    count = #notes
+    writeAll()
+    layout()
+    if favOpen then favRender() end
+    return true
+end
+
+function favDelete(idx)
+    idx = tonumber(idx)
+    local list = favLoad()
+    if not idx or not list[idx] then return end
+    local it = list[idx]
+    -- 删除前留一份回收记录，手误还能捞回来
+    local f = favFile()
+    if f then
+        local delPath = f:gsub('favorites%.txt$', 'favorites_deleted.txt')
+        local fd = io.open(delPath, 'ab')
+        if fd then
+            fd:write(os.date('%Y-%m-%d %H:%M:%S') .. '\t' .. it.name .. '\t' .. it.text .. '\t' .. tostring(it.theme or 1) .. '\r\n')
+            fd:close()
+        end
+    end
+    table.remove(list, idx)
+    favWrite(list)
+    favRender()
+end
+
+function favRestore(idx, date)
+    idx = tonumber(idx)
+    local list = favLoad()
+    if not idx or not list[idx] then return end
+    local it = table.remove(list, idx)
+    date = date or todayStr()
+    local note = { date = date, name = it.name, text = it.text, src = 'user', theme = it.theme or 1 }
+    local ins = #notes + 1
+    for i = 1, #notes do
+        if (notes[i].date or '') > date then ins = i break end
+    end
+    table.insert(notes, ins, note)
+    count = #notes
+    favWrite(list)
+    writeAll()
+    layout()
+    favRender()
+end
+
+function favClick(n)
+    if (FAVUI.drag) then return end
+    if FAVUI.justDropped and os.clock() - FAVUI.justDropped < 0.4 then return end
+    local idx = favPage * FAV_PER + (tonumber(n) or 0) + 1
+    favRestore(idx)
+end
+
+function favRight(n)
+    local idx = favPage * FAV_PER + (tonumber(n) or 0) + 1
+    favDelete(idx)
 end
