@@ -2322,6 +2322,9 @@ function favDrop(x, y)
         end
     end
     FAVUI.dropping = nil
+    -- 落点确定后按「非拖拽」重排一次，让 buildColumns 裁掉尾部空列、窗口缩回去
+    layout()
+    favMaskFit()
     newZoneReset()
     if favOpen then favRender() end
     SKIN:Bang('!UpdateMeter', '*')
