@@ -2225,6 +2225,7 @@ function dragFav(x, y)
         setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
         SKIN:Bang('!UpdateMeter', 'GhostCard')
         SKIN:Bang('!UpdateMeter', 'GhostName')
+        SKIN:Bang('!UpdateMeter', 'GhostText')
         SKIN:Bang('!Redraw')
         return
     end
@@ -2248,6 +2249,7 @@ function dragFav(x, y)
     setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
     SKIN:Bang('!UpdateMeter', 'GhostCard')
     SKIN:Bang('!UpdateMeter', 'GhostName')
+    SKIN:Bang('!UpdateMeter', 'GhostText')
     SKIN:Bang('!Redraw')
 end
 
