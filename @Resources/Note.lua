@@ -2043,7 +2043,7 @@ function favRender()
 
     setOpt('FavHint', 'X', px + pw / 2); setOpt('FavHint', 'Y', py + ph - rnd(20 * scale))
     setOpt('FavHint', 'FontSize', rnd(7 * scale))
-    setOpt('FavHint', 'Text', 'µã»÷»Ö¸´ ¡¤ ÓÒ¼üÉ¾³ý ¡¤ µã¿Õ°×¹Ø±Õ')
+    setOpt('FavHint', 'Text', 'µã»÷»Ö¸´ ¡¤ ÍÏ½ø¿òÉ¾³ý ¡¤ µã¿Õ°×¹Ø±Õ')
     show('FavHint')
 
     if #list == 0 then
