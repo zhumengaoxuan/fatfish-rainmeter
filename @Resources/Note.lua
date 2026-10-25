@@ -2018,7 +2018,9 @@ function favRender()
     local ph = rnd(74 * scale) + math.max(1, shown) * rowH + rnd(30 * scale)
     if #list == 0 then ph = rnd(140 * scale) end
     local px = rnd((w - pw) / 2)
-    local py = rnd((h - ph) / 2)
+    -- 纵向不再居中：固定落在列头稍下方，允许面板底部超出背景
+    local _, _, _, hdr = metrics()
+    local py = rnd(hdr + 8 * scale)
     FAVUI.panel = { x = px, y = py, w = pw, h = ph }
 
     show('FavBlocker')
