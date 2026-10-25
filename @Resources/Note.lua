@@ -820,6 +820,25 @@ local function layout()
     SKIN:Bang('!Redraw')
 end
 
+
+-- 数据层重载：外部改了 notes.txt 之后调用，不用刷新皮肤
+function reloadNotes()
+    local d = readAll()
+    if d then
+        local list, gc, gr, gs, gt, gp = parse(d)
+        notes = list; count = #notes
+        if gc then cols = clamp(gc, 2, MAX_COLS) end
+        if gr then gridRows = math.max(1, gr) end
+        if gs then scale = clamp(gs, 0.6, 2.0) end
+        if gt then theme = clamp(gt, 1, 4) end
+        if gp then page = clamp(gp, 0, PAGE_MAX) end
+    end
+    layout()
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+    return count
+end
+
 function boot()
     resolvePaths()
     loadAuto()
@@ -1018,6 +1037,10 @@ local function insertAt(date, row, note)
 end
 
 function beginNewDrag(mname, mx, my)
+    if FAVUI and FAVUI.drag then
+        FAVUI.drag = nil
+        hideGhost(); hide('DropHint'); newZoneReset()
+    end
     if boardLocked() then return end
     if page > 0 then return end
     NEW_DRAG = true
@@ -1033,6 +1056,11 @@ function beginNewDrag(mname, mx, my)
 end
 function beginDrag(i, mname, mx, my)
     if boardLocked() then return end
+    -- 防御：上一次收藏拖出没走完就关了面板，这里先清干净
+    if FAVUI and FAVUI.drag then
+        FAVUI.drag = nil
+        hideGhost(); hide('DropHint'); newZoneReset()
+    end
     i = tonumber(i); mx = tonumber(mx) or 0; my = tonumber(my) or 0
     if not canEdit() then return end
     if not i or i < 1 or i > count then return end
@@ -1968,6 +1996,7 @@ function favRender()
     if #list == 0 then ph = rnd(140 * scale) end
     local px = rnd((w - pw) / 2)
     local py = rnd((h - ph) / 2)
+    FAVUI.panel = { x = px, y = py, w = pw, h = ph }
 
     setOpt('FavBlocker', 'X', 0); setOpt('FavBlocker', 'Y', 0)
     setOpt('FavBlocker', 'W', w); setOpt('FavBlocker', 'H', h)
@@ -2118,15 +2147,25 @@ local function favZoneHit(x, y)
     return z and x >= z.x and x <= z.x + z.w and y >= z.y and y <= z.y + z.h
 end
 
-local function favZonePaint(active)
+local 
+-- 新建区恢复成默认样式（颜色 + 文字），关闭面板和结束拖拽都要调
+function newZoneReset()
+    if not lastZone then return end
+    setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
+    setOpt('NewZoneText', 'Text', '拖出新便签')
+    setOpt('NewZoneText', 'FontColor', '235,238,245,255')
+    SKIN:Bang('!UpdateMeter', 'NewZone')
+    SKIN:Bang('!UpdateMeter', 'NewZoneText')
+end
+
+function favZonePaint(active)
     if active then
         setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 200,60,60,40 | StrokeWidth 2 | Stroke Color 255,90,90,240')
         setOpt('NewZoneText', 'Text', '直接删除')
         setOpt('NewZoneText', 'FontColor', '255,150,150,255')
     else
-        setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
-        setOpt('NewZoneText', 'Text', '直接删除')
-        setOpt('NewZoneText', 'FontColor', FAVUI and '235,238,245,255' or '235,238,245,255')
+        newZoneReset()
+        if FAVUI.drag then setOpt('NewZoneText', 'Text', '直接删除') end
     end
     SKIN:Bang('!UpdateMeter', 'NewZone')
     SKIN:Bang('!UpdateMeter', 'NewZoneText')
@@ -2142,9 +2181,12 @@ function favDragStart(i)
     local it = list[idx]
     if not it then return end
     FAVUI.drag = i
+    FAVUI.grabDX = nil
+    FAVUI.originX = nil
+    FAVUI.moved = false
     FAVUI.dragText = it.text
     FAVUI.dragName = it.name
-    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 255,120,120,200')
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
     setOpt('GhostName', 'Text', it.name)
     setOpt('GhostText', 'Text', it.text)
     setOpt('GhostName', 'X', lastDragX and (lastDragX - rnd(60 * scale)) or 200)
@@ -2157,19 +2199,35 @@ function favDragStart(i)
 end
 
 function dragFav(x, y)
+    if not FAVUI.originX then FAVUI.originX, FAVUI.originY = x, y end
+    local dx, dy = x - FAVUI.originX, y - FAVUI.originY
+    if math.sqrt(dx * dx + dy * dy) > 8 then FAVUI.moved = true end
+    -- 预览框保持「按下时指针在行内的相对位置」，拖到哪都贴合手感
+    local r0 = FAVUI.rect[FAVUI.drag]
+    local gw = r0 and r0.w or rnd(240 * scale)
+    local gh = r0 and r0.h or rnd(50 * scale)
+    if r0 and not FAVUI.grabDX then
+        FAVUI.grabDX = (FAVUI.originX or x) - r0.x
+        FAVUI.grabDY = (FAVUI.originY or y) - r0.y
+    end
+    local gx = x - (FAVUI.grabDX or gw / 2)
+    local gy = y - (FAVUI.grabDY or gh / 2)
     local z = favZoneHit(x, y)
     if z then
         favZonePaint(true)
+        setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 60,30,40,210 | StrokeWidth 1 | Stroke Color 255,110,110,220')
         hide('DropHint')
-        show('GhostCard'); show('GhostName')
-        setOpt('GhostCard', 'X', x - rnd(80 * scale)); setOpt('GhostCard', 'Y', y - rnd(20 * scale))
-        setOpt('GhostName', 'X', x); setOpt('GhostName', 'Y', y - rnd(6 * scale))
+        show('GhostCard'); show('GhostName'); show('GhostText')
+        setOpt('GhostCard', 'X', gx); setOpt('GhostCard', 'Y', gy)
+        setOpt('GhostName', 'X', gx + rnd(14 * scale)); setOpt('GhostName', 'Y', gy + rnd(8 * scale))
+        setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
         SKIN:Bang('!UpdateMeter', 'GhostCard')
         SKIN:Bang('!UpdateMeter', 'GhostName')
         SKIN:Bang('!Redraw')
         return
     end
     favZonePaint(false)
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
     local c, r, ok = targetCell(x, y)
     if ok and c and c >= 1 then
         local margin, cardW, gapX, header = metrics()
@@ -2183,8 +2241,9 @@ function dragFav(x, y)
         hide('DropHint')
         FAVUI.dropCol = nil
     end
-    setOpt('GhostCard', 'X', x - rnd(80 * scale)); setOpt('GhostCard', 'Y', y - rnd(20 * scale))
-    setOpt('GhostName', 'X', x); setOpt('GhostName', 'Y', y - rnd(6 * scale))
+    setOpt('GhostCard', 'X', gx); setOpt('GhostCard', 'Y', gy)
+    setOpt('GhostName', 'X', gx + rnd(14 * scale)); setOpt('GhostName', 'Y', gy + rnd(8 * scale))
+    setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
     SKIN:Bang('!UpdateMeter', 'GhostCard')
     SKIN:Bang('!UpdateMeter', 'GhostName')
     SKIN:Bang('!Redraw')
@@ -2203,6 +2262,15 @@ function favDrop(x, y)
     FAVUI.justDropped = os.clock()
     local list = favLoad()
     local idx = favPage * FAV_PER + i + 1
+    local pnl = FAVUI.panel
+    local inPanel = pnl and x and y and x >= pnl.x and x <= pnl.x + pnl.w and y >= pnl.y and y <= pnl.y + pnl.h
+    if not FAVUI.moved or inPanel then
+        -- 只是轻拖或在面板内松手：不改变收藏状态
+        newZoneReset()
+        if favOpen then favRender() end
+        SKIN:Bang('!Redraw')
+        return
+    end
     if not list[idx] then favRender(); return end
     if x and y and favZoneHit(x, y) then
         favDelete(idx)                    -- 写回收记录后删除
@@ -2212,8 +2280,7 @@ function favDrop(x, y)
             favRestore(idx, colDate(c))   -- 取消收藏并落到该列日期
         end
     end
-    setOpt('NewZoneText', 'Text', '拖出新便签')
-    setOpt('NewZoneText', 'FontColor', '235,238,245,255')
+    newZoneReset()
     if favOpen then favRender() end
     SKIN:Bang('!UpdateMeter', '*')
     SKIN:Bang('!Redraw')
@@ -2243,6 +2310,9 @@ function favToggle()
         favRender()
     else
         FAVUI.ui = 'normal'
+        FAVUI.drag = nil
+        hideGhost(); hide('DropHint')
+        newZoneReset()
         if FAVUI.tips then
             for name, tip in pairs(FAVUI.tips) do setOpt(name, 'ToolTipText', tip) end
             FAVUI.tips = nil
@@ -2254,6 +2324,9 @@ function favToggle()
 end
 
 function favClose()
+    FAVUI.drag = nil
+    hideGhost(); hide('DropHint')
+    newZoneReset()
     if FAVUI.tips then
         for name, tip in pairs(FAVUI.tips) do setOpt(name, 'ToolTipText', tip) end
         FAVUI.tips = nil
