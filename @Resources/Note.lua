@@ -2341,24 +2341,33 @@ function favDrop(x, y)
     SKIN:Bang('!Redraw')
 end
 
+
+-- 收藏面板打开时统一关掉底层米特的 tooltip（ToolTipHidden=1），关闭时恢复
+function favTipsHidden(hide)
+    local names = {}
+    for i = 0, MAXN - 1 do
+        names[#names + 1] = 'Name' .. i
+        names[#names + 1] = 'Del' .. i
+        names[#names + 1] = 'Text' .. i
+    end
+    for k = 1, 4 do names[#names + 1] = 'Sw_' .. k end
+    names[#names + 1] = 'NewZone'
+    names[#names + 1] = 'FavBtn'
+    for _, n in ipairs(names) do
+        local m = SKIN:GetMeter(n)
+        if m then setOpt(n, 'ToolTipHidden', hide and '1' or '0') end
+    end
+    SKIN:Bang('!UpdateMeter', '*')
+end
+
 function favToggle()
     favOpen = not favOpen
     if favOpen then
         FAVUI.ui = 'fav'
         FAVUI.hover = -1
         FAVUI.skipUntil = os.clock() + 0.35
-        -- 遮罩挡不住下层命中（实测），tooltip 会滞留，打开时先清掉
-        FAVUI.tips = {}
-        for i = 0, MAXN - 1 do
-            local m = SKIN:GetMeter('Name' .. i)
-            if m then
-                local tip = m:GetOption('ToolTipText') or ''
-                if tip ~= '' then
-                    FAVUI.tips['Name' .. i] = tip
-                    setOpt('Name' .. i, 'ToolTipText', '')
-                end
-            end
-        end
+        -- 遮罩挡不住下层命中（实测），用 ToolTipHidden 统一关掉底层提示
+        favTipsHidden(true)
         hoverIdx = -1
         for k = 1, 4 do hide('Sw_' .. k) end
         hide('SelRing')
@@ -2368,10 +2377,7 @@ function favToggle()
         FAVUI.drag = nil
         hideGhost(); hide('DropHint')
         newZoneReset()
-        if FAVUI.tips then
-            for name, tip in pairs(FAVUI.tips) do setOpt(name, 'ToolTipText', tip) end
-            FAVUI.tips = nil
-        end
+        favTipsHidden(false)
         leaveFav()
         favHideAll()
         SKIN:Bang('!Redraw')
@@ -2382,10 +2388,7 @@ function favClose()
     FAVUI.drag = nil
     hideGhost(); hide('DropHint')
     newZoneReset()
-    if FAVUI.tips then
-        for name, tip in pairs(FAVUI.tips) do setOpt(name, 'ToolTipText', tip) end
-        FAVUI.tips = nil
-    end
+    favTipsHidden(false)
     favOpen = false
     FAVUI.hover = -1
     FAVUI.ui = 'normal'
