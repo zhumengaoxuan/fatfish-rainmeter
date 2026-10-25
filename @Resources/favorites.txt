@@ -1,2 +1,2 @@
 #FatFishNote favorites v1
-节气口径	霜降 10/23 交节，到立冬前都挂霜降；多天显示同名不是 bug，插件给的其实是「第N天」	1	2026-10-25
+右键复制	右键拖便签=复制并移动：MeasureMouse 的 RightMouseDragAction（须 Start）+ 卡片 RightMouseDown 记索引 + COPY 状态位，松手在目标列插入副本	1	2026-10-25
