@@ -368,7 +368,7 @@ local function computePitch(r, ch, header, bottom, gapY)
 end
 
 local function buildColumns()
-    local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG
+    local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG or (FAVUI and FAVUI.drag)
     if not dragging then
         -- 只裁尾部空行列；中间空列代表「该日无便签」，必须保留，否则日期错位
         local lastCol = 0
