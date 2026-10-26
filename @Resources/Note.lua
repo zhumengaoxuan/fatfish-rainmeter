@@ -478,9 +478,10 @@ local function cardShape(m, isAI, th)
     setOpt('Text' .. m, 'FontSize', rnd(10 * scale))
     setOpt('Text' .. m, 'FontColor', th.head)
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale)))
-    setOpt('Text' .. m, 'H', math.max(20, cardH - rnd(48 * scale)))
+    -- 高度给足、由 Card 容器裁剪：实测容器会同时裁掉绘制范围和窗口边界，不会撑大窗口
+    setOpt('Text' .. m, 'H', 4000)
     setOpt('Text' .. m, 'ClipString', '2')
-    setOpt('Text' .. m, 'Container', '')
+    setOpt('Text' .. m, 'Container', 'Card' .. m)
 end
 
 
@@ -632,14 +633,12 @@ function noteScroll(m, delta)
     local w, fs, viewH, lineH = textMetrics()
     local lines = wrapLines(note.text, w, fs)
     local visible = math.max(1, math.floor(viewH / lineH))
-    local maxStart = math.max(0, #lines - visible)
+    local maxOffset = math.max(0, (#lines - visible) * lineH)
     local cur = tonumber(SCROLL[note]) or 0
-    cur = cur + delta
-    if cur < 0 then cur = 0 elseif cur > maxStart then cur = maxStart end
+    cur = cur + delta * lineH
+    if cur < 0 then cur = 0 elseif cur > maxOffset then cur = maxOffset end
     SCROLL[note] = cur
-    local show = {}
-    for k = cur + 1, #lines do show[#show + 1] = lines[k] end
-    setOpt('Text' .. m, 'Text', table.concat(show, '\n'))
+    setOpt('Text' .. m, 'Y', rnd(40 * scale) - cur)
     SKIN:Bang('!UpdateMeter', 'Text' .. m)
     SKIN:Bang('!Redraw')
 end
@@ -658,17 +657,10 @@ local function updateCard(i, c, r)
     setOpt('Head' .. m, 'X', x + 1); setOpt('Head' .. m, 'Y', y + 1)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
     setOpt('Del' .. m, 'X', x + cardW - rnd(24 * scale)); setOpt('Del' .. m, 'Y', y + rnd(14 * scale))
-    setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale))
-    do
-        local nm = notes[i]
-        local w, fs = textMetrics()
-        local lines = wrapLines(nm.text, w, fs)
-        local startLine = tonumber(SCROLL[nm]) or 0
-        local show = {}
-        for k = startLine + 1, #lines do show[#show + 1] = lines[k] end
-        setOpt('Text' .. m, 'Text', table.concat(show, '\n'))
-    end
+    local off = tonumber(SCROLL[notes[i]]) or 0
+    setOpt('Text' .. m, 'X', rnd(14 * scale)); setOpt('Text' .. m, 'Y', rnd(40 * scale) - off)
     setOpt('Name' .. m, 'Text', notes[i].name)
+    setOpt('Text' .. m, 'Text', notes[i].text)
     for _, pfx in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do
         SKIN:Bang('!UpdateMeter', pfx .. m)
     end
