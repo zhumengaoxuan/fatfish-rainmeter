@@ -1066,6 +1066,10 @@ function drag(x, y)
     x = tonumber(x); y = tonumber(y)
     if not x or not y then return end
     lastDragX, lastDragY = x, y
+    if FAVUI and FAVUI.barDrag then
+        favBarMove(y)
+        return
+    end
     if FAVUI and FAVUI.drag then
         dragFav(x, y)
         return
@@ -1148,6 +1152,10 @@ function drag(x, y)
 end
 
 function drop(mx, my)
+    if FAVUI and FAVUI.barDrag then
+        favBarEnd()
+        return
+    end
     if FAVUI and FAVUI.drag then
         favDrop(mx, my)
         return
@@ -1991,6 +1999,7 @@ function favRender()
         local barH = rowsShown * rowH - rnd(8 * scale)
         local thumbH = math.max(rnd(24 * scale), rnd(barH * FAV_PER / #list))
         local thumbY = barY + rnd((barH - thumbH) * (scroll / maxScroll))
+        FAVUI.bar = { y = barY, h = barH, thumbH = thumbH }
         setOpt('FavBar', 'X', barX); setOpt('FavBar', 'Y', barY)
         setOpt('FavBar', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. barH .. ',' .. rnd(2 * scale) .. ' | Fill Color 235,238,245,40 | StrokeWidth 0')
         setOpt('FavBarThumb', 'X', barX); setOpt('FavBarThumb', 'Y', thumbY)
@@ -2331,6 +2340,52 @@ function favClose()
     SKIN:Bang('!Redraw')
 end
 
+
+
+-- 进度条拖动：按下记起点，拖动按像素换算成行数（参考 nbdock 的 slotPx 思路）
+function favBarDown(y)
+    if not favOpen then return end
+    local g = FAVUI.bar
+    if not g then return end
+    FAVUI.barDrag = true
+    FAVUI.barStartY = tonumber(y) or 0
+    FAVUI.barStartScroll = tonumber(FAVUI.scroll) or 0
+    SKIN:Bang('!CommandMeasure', 'MeasureMouse', 'Start')
+end
+
+function favBarMove(y)
+    if not FAVUI.barDrag then return end
+    local g = FAVUI.bar
+    local list = favLoad()
+    local maxScroll = math.max(0, #list - FAV_PER)
+    local travel = (g and (g.h - g.thumbH)) or 1
+    if travel < 1 then travel = 1 end
+    local dy = (tonumber(y) or 0) - (FAVUI.barStartY or 0)
+    local target = (FAVUI.barStartScroll or 0) + dy * maxScroll / travel
+    FAVUI.scroll = clamp(math.floor(target + 0.5), 0, maxScroll)
+    FAVUI.hover = -1
+    favRender()
+end
+
+function favBarEnd()
+    if not FAVUI.barDrag then return end
+    FAVUI.barDrag = false
+    SKIN:Bang('!CommandMeasure', 'MeasureMouse', 'Stop')
+end
+
+-- 点轨道：按点击位置换算进度（对应 nbdock 的 jump）
+function favBarJump(y)
+    if not favOpen then return end
+    local g = FAVUI.bar
+    if not g then return end
+    local list = favLoad()
+    local maxScroll = math.max(0, #list - FAV_PER)
+    if maxScroll <= 0 then return end
+    local rel = ((tonumber(y) or 0) - g.y - g.thumbH / 2) / math.max(1, g.h - g.thumbH)
+    FAVUI.scroll = clamp(math.floor(rel * maxScroll + 0.5), 0, maxScroll)
+    FAVUI.hover = -1
+    favRender()
+end
 
 -- 滚动：d 为行数（正数向下）
 function favScrollBy(d)
