@@ -1271,7 +1271,8 @@ function drag(x, y)
     end
     if scaling then
         local maxS = maxScaleFor(math.max(1, math.ceil(count / cols), gridRows))
-        local raw = clamp(scaleStart + ((x - scaleDownX) + (y - scaleDownY)) / 500, 0.6, maxS)
+        -- 灵敏度：斜向拖动才算一倍行程，1.0 倍约需 1000px 对角线（原来是 500px 且 x+y 会翻倍）
+        local raw = clamp(scaleStart + ((x - scaleDownX) + (y - scaleDownY)) / 2 / 1000, 0.6, maxS)
         local ns, hit = snapValue(raw, maxS)
         if hit then scaleTipShow(ns) else scaleTipHide() end
         if math.abs(ns - scale) > 0.004 then scale = ns; layout() end
