@@ -1,5 +1,5 @@
 #FatFishNote v3
-#grid cols=2 rows=5 scale=1.11
+#grid cols=2 rows=5 scale=0.89
 #theme 1
 #page 0
 2026-10-26	到货	核对到货清单	auto	1
