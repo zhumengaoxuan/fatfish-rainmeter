@@ -2301,6 +2301,94 @@ function favTipsHidden(hide)
     SKIN:Bang('!UpdateMeter', '*')
 end
 
+
+-- ===== 右键拖动：复制一张便签到目标位置（原便签不动）=====
+COPY = { idx = nil, pending = false, moved = false, x = 0, y = 0 }
+
+function beginCopy(i, mname, mx, my)
+    if boardLocked() then return end
+    i = tonumber(i); mx = tonumber(mx) or 0; my = tonumber(my) or 0
+    if not i or i < 1 or i > count or not notes[i] then return end
+    local m = SKIN:GetMeter(tostring(mname))
+    local ax, ay = 0, 0
+    if m then ax = m:GetX(true) or 0; ay = m:GetY(true) or 0 end
+    COPY.idx = i
+    COPY.pending = true
+    COPY.moved = false
+    COPY.x = ax + mx
+    COPY.y = ay + my
+    COPY.sx = COPY.x
+    COPY.sy = COPY.y
+end
+
+function dragCopy(x, y)
+    if not COPY.idx then return end
+    local dx, dy = x - COPY.sx, y - COPY.sy
+    if COPY.pending and math.sqrt(dx * dx + dy * dy) < 6 then return end
+    COPY.pending = false
+    COPY.moved = true
+    local n = notes[COPY.idx]
+    if not n then return end
+    ghostX = x - rnd(80 * scale); ghostY = y - rnd(20 * scale)
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale)
+        .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 120,220,255,200')
+    setOpt('GhostName', 'Text', n.name)
+    setOpt('GhostText', 'Text', n.text)
+    setOpt('GhostCard', 'X', ghostX); setOpt('GhostCard', 'Y', ghostY)
+    setOpt('GhostName', 'X', ghostX + rnd(14 * scale)); setOpt('GhostName', 'Y', ghostY + rnd(8 * scale))
+    setOpt('GhostText', 'X', ghostX + rnd(14 * scale)); setOpt('GhostText', 'Y', ghostY + rnd(40 * scale))
+    setOpt('GhostName', 'FontSize', rnd(9 * scale))
+    show('GhostCard'); show('GhostName'); show('GhostText')
+
+    local c, r, ok = targetCellSmart(x, y)
+    if ok and c and c >= 1 then
+        local margin, cardW, gapX = metrics()
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
+            .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+        local hx, hy = slotPos(r, c)
+        setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
+        show('DropHint')
+        COPY.col, COPY.row = c, r
+    else
+        hide('DropHint')
+        COPY.col, COPY.row = nil, nil
+    end
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+end
+
+function dropCopy(x, y)
+    local i = COPY.idx
+    if not i then return end
+    x = tonumber(x) or COPY.x
+    y = tonumber(y) or COPY.y
+    local moved = COPY.moved
+    local c, r = COPY.col, COPY.row
+    COPY.idx = nil; COPY.pending = false; COPY.moved = false
+    COPY.col, COPY.row = nil, nil
+    SKIN:Bang('!CommandMeasure', 'MeasureMouseR', 'Stop')
+    hide('DropHint')
+    hideGhost()
+    if not moved then
+        -- 右键单击（没拖动）：维持原来的「打开设置」
+        SKIN:Bang('!ActivateConfig', 'FatFishNote\\settings', 'settings.ini')
+        return
+    end
+    local src = notes[i]
+    if not src then layout(); return end
+    c, r, ok = targetCellSmart(x, y)
+    if ok and c and c >= 1 then
+        local d = colDate(c)
+        insertAt(d, math.max(1, r or 1), { date = d, name = src.name, text = src.text, src = 'user', theme = src.theme })
+        writeAll()
+        layout()
+        autoGen()
+        layout()
+    end
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+end
+
 function favToggle()
     favOpen = not favOpen
     if favOpen then
