@@ -462,6 +462,8 @@ end
 
 local function themeColors() return THEMES[clamp(theme, 1, 4)] end
 
+
+
 local function cardShape(m, isAI, th)
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
     th = th or themeColors()
@@ -477,6 +479,8 @@ local function cardShape(m, isAI, th)
     setOpt('Text' .. m, 'FontColor', th.head)
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale)))
     setOpt('Text' .. m, 'H', math.max(20, cardH - rnd(48 * scale)))
+    setOpt('Text' .. m, 'ClipString', '2')
+    setOpt('Text' .. m, 'Container', '')
 end
 
 
@@ -560,6 +564,87 @@ function setCardTheme(m, k)
     placeSwatches(m)
 end
 
+-- ===== 卡片正文滚动（按行切分，不动米特高度）=====
+SCROLL = SCROLL or {}
+local LINE_CACHE = {}
+
+-- 粗略估算字符宽度：中文按 1 个字号，西文按 0.55 个字号
+local function charW(ch, fs)
+    local b = string.byte(ch) or 0
+    if b >= 128 then return fs end
+    return fs * 0.55
+end
+
+-- 按宽度把正文拆成可视行（Rainmeter 的 Lua 是 5.1，没有 utf8 库；字符串是 GBK 字节）
+local function wrapLines(text, w, fs)
+    local key = (text or '') .. '|' .. w .. '|' .. fs
+    local cached = LINE_CACHE[key]
+    if cached then return cached end
+    local lines, cur, curW = {}, '', 0
+    local i, n = 1, #text
+    while i <= n do
+        local b = text:byte(i)
+        local ch, cw
+        if b == 10 then
+            lines[#lines + 1] = cur
+            cur, curW = '', 0
+            i = i + 1
+        else
+            if b == 13 then
+                i = i + 1
+            elseif b >= 128 and i + 1 <= n then
+                ch = text:sub(i, i + 1); i = i + 2; cw = fs
+            else
+                ch = text:sub(i, i); i = i + 1; cw = fs * 0.55
+            end
+            if ch then
+                if curW + cw > w and cur ~= '' then
+                    lines[#lines + 1] = cur
+                    cur, curW = ch, cw
+                else
+                    cur = cur .. ch
+                    curW = curW + cw
+                end
+            end
+        end
+    end
+    if cur ~= '' then lines[#lines + 1] = cur end
+    if #lines == 0 then lines[1] = '' end
+    LINE_CACHE[key] = lines
+    return lines
+end
+
+local function textMetrics()
+    local _, cardW = metrics()
+    local fs = rnd(10 * scale)
+    local w = math.max(20, cardW - rnd(28 * scale))
+    local _, _, _, _, gapY = metrics()
+    local viewH = math.max(20, cardH - rnd(48 * scale))
+    local lineH = math.max(1, rnd(fs * 1.35))
+    return w, fs, viewH, lineH
+end
+
+function noteScroll(m, delta)
+    m = tonumber(m); delta = tonumber(delta) or 0
+    local i = cardNote[m]
+    if not i or not notes[i] then return end
+    local note = notes[i]
+    local w, fs, viewH, lineH = textMetrics()
+    local lines = wrapLines(note.text, w, fs)
+    local visible = math.max(1, math.floor(viewH / lineH))
+    local maxStart = math.max(0, #lines - visible)
+    local cur = tonumber(SCROLL[note]) or 0
+    cur = cur + delta
+    if cur < 0 then cur = 0 elseif cur > maxStart then cur = maxStart end
+    SCROLL[note] = cur
+    local show = {}
+    for k = cur + 1, #lines do show[#show + 1] = lines[k] end
+    setOpt('Text' .. m, 'Text', table.concat(show, '\n'))
+    SKIN:Bang('!UpdateMeter', 'Text' .. m)
+    SKIN:Bang('!Redraw')
+end
+
+
 local function updateCard(i, c, r)
     i = tonumber(i)
     if not i or i < 1 or i > count then return end
@@ -574,8 +659,16 @@ local function updateCard(i, c, r)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
     setOpt('Del' .. m, 'X', x + cardW - rnd(24 * scale)); setOpt('Del' .. m, 'Y', y + rnd(14 * scale))
     setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale))
+    do
+        local nm = notes[i]
+        local w, fs = textMetrics()
+        local lines = wrapLines(nm.text, w, fs)
+        local startLine = tonumber(SCROLL[nm]) or 0
+        local show = {}
+        for k = startLine + 1, #lines do show[#show + 1] = lines[k] end
+        setOpt('Text' .. m, 'Text', table.concat(show, '\n'))
+    end
     setOpt('Name' .. m, 'Text', notes[i].name)
-    setOpt('Text' .. m, 'Text', notes[i].text)
     for _, pfx in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do
         SKIN:Bang('!UpdateMeter', pfx .. m)
     end
