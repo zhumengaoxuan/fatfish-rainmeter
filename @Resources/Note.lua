@@ -1159,6 +1159,60 @@ function beginDrag(i, mname, mx, my)
     ring()
 end
 
+
+-- ===== 缩放磁吸 =====
+local SNAP = { 0.6, 0.75, 1.0, 1.25, 1.5, 2.0 }
+local SNAP_STRONG = { [1.0] = true, [1.5] = true }
+local snapHold = nil
+
+local function snapRadius(target)
+    return SNAP_STRONG[target] and 0.04 or 0.02
+end
+
+-- 返回（吸附后的值, 是否吸住某个档位）
+local function snapValue(v, maxS)
+    if snapHold then
+        -- 吸住后要有回滞：拖出 1.8 倍半径才脱钩，避免临界抖动
+        if math.abs(v - snapHold) <= snapRadius(snapHold) * 1.8 and snapHold <= maxS + 1e-6 then
+            return snapHold, true
+        end
+        snapHold = nil
+    end
+    local best, bd = nil, 1e9
+    for _, target in ipairs(SNAP) do
+        if target <= maxS + 1e-6 then
+            local d = math.abs(v - target)
+            if d <= snapRadius(target) and d < bd then best, bd = target, d end
+        end
+    end
+    if best then
+        snapHold = best
+        return best, true
+    end
+    return v, false
+end
+
+local HANDLE_FREE = 'Ellipse 8,8,8 | Fill Color 255,255,255,90 | StrokeWidth 1 | Stroke Color 255,255,255,170'
+local HANDLE_SNAP = 'Ellipse 8,8,8 | Fill Color 176,158,255,230 | StrokeWidth 1 | Stroke Color 176,158,255,255'
+
+function scaleTipShow(v)
+    setOpt('Handle', 'Shape', HANDLE_SNAP)
+    local hm = SKIN:GetMeter('Handle')
+    local hx, hy = 0, 0
+    if hm then hx = hm:GetX(true) or 0; hy = hm:GetY(true) or 0 end
+    setOpt('ScaleTip', 'Text', string.format('%d%%', math.floor(v * 100 + 0.5)))
+    setOpt('ScaleTip', 'FontSize', rnd(9 * scale))
+    setOpt('ScaleTip', 'X', hx - rnd(2 * scale)); setOpt('ScaleTip', 'Y', hy - rnd(26 * scale))
+    SKIN:Bang('!UpdateMeter', 'ScaleTip')
+    show('ScaleTip')
+end
+
+function scaleTipHide()
+    setOpt('Handle', 'Shape', HANDLE_FREE)
+    hide('ScaleTip')
+    snapHold = nil
+end
+
 function beginScale(mname, mx, my)
     scaling = true
     scaleStart = scale
@@ -1217,7 +1271,9 @@ function drag(x, y)
     end
     if scaling then
         local maxS = maxScaleFor(math.max(1, math.ceil(count / cols), gridRows))
-        local ns = clamp(scaleStart + ((x - scaleDownX) + (y - scaleDownY)) / 500, 0.6, maxS)
+        local raw = clamp(scaleStart + ((x - scaleDownX) + (y - scaleDownY)) / 500, 0.6, maxS)
+        local ns, hit = snapValue(raw, maxS)
+        if hit then scaleTipShow(ns) else scaleTipHide() end
         if math.abs(ns - scale) > 0.004 then scale = ns; layout() end
         return
     end
@@ -1325,6 +1381,7 @@ function drop(mx, my)
     end
     if scaling then
         scaling = false
+        scaleTipHide()
         writeAll(); layout()
         return
     end
