@@ -1808,7 +1808,7 @@ local FAV_PER = 6
 local favorites = nil
 local favPage = 0
 local favOpen = false
-FAVUI = { ui = 'normal', hover = -1, rect = {} }
+FAVUI = { ui = 'normal', hover = -1, rect = {}, scroll = 0 }
 
 function boardLocked()
     return favOpen
@@ -1857,6 +1857,12 @@ end
 
 function favCount() return #favLoad() end
 
+-- 外部改过 favorites.txt 后，丢弃缓存重新读
+function favReload()
+    favorites = nil
+    return favLoad()
+end
+
 local function favHideAll()
     hide('FavMask'); hide('FavPanel'); hide('FavTitle'); hide('FavHint')
     hide('FavPrev'); hide('FavNext'); hide('FavClose'); hide('FavEmpty'); hide('FavBlocker')
@@ -1882,18 +1888,21 @@ function favRender()
     local w = tonumber(SKIN:GetVariable('SW')) or 560
     local h = tonumber(SKIN:GetVariable('SH')) or 380
     local list = favLoad()
-    local pages = math.max(1, math.ceil(#list / FAV_PER))
-    if favPage > pages - 1 then favPage = pages - 1 end
-    if favPage < 0 then favPage = 0 end
+    -- 滚动模型：FavUI.scroll = 当前顶部条目下标（0 基）
+    local maxScroll = math.max(0, #list - FAV_PER)
+    FAVUI.scroll = clamp(tonumber(FAVUI.scroll) or 0, 0, maxScroll)
+    local scroll = FAVUI.scroll
 
     if FAVUI.hover < 0 then
         hide('SelRing')
         for k = 1, 4 do hide('Sw_' .. k) end
     end
-    local shown = math.min(FAV_PER, math.max(0, #list - favPage * FAV_PER))
+    local shown = math.min(FAV_PER, math.max(0, #list - scroll))
     local pw = math.min(rnd(380 * scale), w - rnd(48 * scale))
     local rowH = rnd(44 * scale)
-    local ph = rnd(74 * scale) + math.max(1, shown) * rowH + rnd(30 * scale)
+    -- 高度按「一屏固定行数」，条目多时不随滚动抖动
+    local rowsShown = math.max(1, math.min(FAV_PER, #list))
+    local ph = rnd(74 * scale) + rowsShown * rowH + rnd(30 * scale)
     if #list == 0 then ph = rnd(140 * scale) end
     local px = rnd((w - pw) / 2)
     -- 纵向不再居中：固定落在列头稍下方，允许面板底部超出背景
@@ -1934,7 +1943,7 @@ function favRender()
     end
 
     for i = 0, FAV_PER - 1 do
-        local idx = favPage * FAV_PER + i + 1
+        local idx = scroll + i + 1
         local it = list[idx]
         if it then
             local ry = py + rnd(52 * scale) + i * rowH
@@ -1961,17 +1970,33 @@ function favRender()
         end
     end
 
-    if pages > 1 then
+    if maxScroll > 0 then
         setOpt('FavPrev', 'X', px + pw - rnd(64 * scale)); setOpt('FavPrev', 'Y', py + rnd(18 * scale))
         setOpt('FavPrev', 'Text', '▲'); setOpt('FavPrev', 'FontSize', rnd(9 * scale))
-        setOpt('FavPrev', 'FontColor', favPage > 0 and '235,238,245,230' or '235,238,245,70')
+        setOpt('FavPrev', 'FontColor', scroll > 0 and '235,238,245,230' or '235,238,245,70')
         show('FavPrev')
         setOpt('FavNext', 'X', px + pw - rnd(46 * scale)); setOpt('FavNext', 'Y', py + rnd(18 * scale))
         setOpt('FavNext', 'Text', '▼'); setOpt('FavNext', 'FontSize', rnd(9 * scale))
-        setOpt('FavNext', 'FontColor', favPage < pages - 1 and '235,238,245,230' or '235,238,245,70')
+        setOpt('FavNext', 'FontColor', scroll < maxScroll and '235,238,245,230' or '235,238,245,70')
         show('FavNext')
     else
         hide('FavPrev'); hide('FavNext')
+    end
+
+    -- 右侧进度条：条数超过一屏才显示
+    if maxScroll > 0 then
+        local barX = px + pw - rnd(7 * scale)
+        local barY = py + rnd(52 * scale)
+        local barH = rowsShown * rowH - rnd(8 * scale)
+        local thumbH = math.max(rnd(24 * scale), rnd(barH * FAV_PER / #list))
+        local thumbY = barY + rnd((barH - thumbH) * (scroll / maxScroll))
+        setOpt('FavBar', 'X', barX); setOpt('FavBar', 'Y', barY)
+        setOpt('FavBar', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. barH .. ',' .. rnd(2 * scale) .. ' | Fill Color 235,238,245,40 | StrokeWidth 0')
+        setOpt('FavBarThumb', 'X', barX); setOpt('FavBarThumb', 'Y', thumbY)
+        setOpt('FavBarThumb', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color 176,158,255,200 | StrokeWidth 0')
+        show('FavBar'); show('FavBarThumb')
+    else
+        hide('FavBar'); hide('FavBarThumb')
     end
 
     SKIN:Bang('!UpdateMeter', '*')
@@ -2030,7 +2055,7 @@ end
 function setFavTheme(k)
     if not favOpen or not FAVUI.hover or FAVUI.hover < 0 then return end
     local list = favLoad()
-    local idx = favPage * FAV_PER + FAVUI.hover + 1
+    local idx = FAVUI.scroll + FAVUI.hover + 1
     if not list[idx] then return end
     list[idx].theme = clamp(tonumber(k) or 1, 1, 4)
     favWrite(list)
@@ -2090,10 +2115,11 @@ function favDragStart(i)
     local r = FAVUI.rect[i]
     if not r then return end
     local list = favLoad()
-    local idx = favPage * FAV_PER + i + 1
+    local idx = FAVUI.scroll + i + 1
     local it = list[idx]
     if not it then return end
     FAVUI.drag = i
+    FAVUI.dragAbs = idx
     FAVUI.grabDX = nil
     FAVUI.grabDY = nil
     FAVUI.originX = nil
@@ -2187,7 +2213,7 @@ function favDrop(x, y)
     FAVUI.dropping = true          -- 落点计算期间仍算「拖拽中」，否则 buildColumns 会裁掉新列
     FAVUI.justDropped = os.clock()
     local list = favLoad()
-    local idx = favPage * FAV_PER + i + 1
+    local idx = FAVUI.dragAbs or (FAVUI.scroll + i + 1)
     local pnl = FAVUI.panel
     local inPanel = pnl and x and y and x >= pnl.x and x <= pnl.x + pnl.w and y >= pnl.y and y <= pnl.y + pnl.h
     if not FAVUI.moved or inPanel then
@@ -2304,10 +2330,28 @@ function favClose()
     SKIN:Bang('!Redraw')
 end
 
-function favPageBy(d)
-    favPage = favPage + (tonumber(d) or 0)
+
+-- 滚动：d 为行数（正数向下）
+function favScrollBy(d)
+    if not favOpen or FAVUI.drag then return end
+    local list = favLoad()
+    local maxScroll = math.max(0, #list - FAV_PER)
+    FAVUI.scroll = clamp((tonumber(FAVUI.scroll) or 0) + (tonumber(d) or 0), 0, maxScroll)
+    FAVUI.hover = -1
     favRender()
 end
+
+-- 滚轮入口（ini 里绑定）
+function favWheel(d)
+    favScrollBy((tonumber(d) or 0) * 1)
+end
+
+-- 整页翻（保留 ▲▼）
+function favPageBy(d)
+    favScrollBy((tonumber(d) or 0) * FAV_PER)
+end
+
+
 
 function favAdd(i)
     i = tonumber(i)
@@ -2375,7 +2419,7 @@ end
 function favClick(n)
     if (FAVUI.drag) then return end
     if FAVUI.justDropped and os.clock() - FAVUI.justDropped < 0.4 then return end
-    local idx = favPage * FAV_PER + (tonumber(n) or 0) + 1
+    local idx = FAVUI.scroll + (tonumber(n) or 0) + 1
     favRestore(idx)
 end
 
