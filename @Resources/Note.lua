@@ -1866,6 +1866,9 @@ end
 function favCount() return #favLoad() end
 
 -- 外部改过 favorites.txt 后，丢弃缓存重新读
+-- 空动作：让面板本身吃掉点击，避免穿透到遮罩触发关闭
+function favNop() end
+
 function favReload()
     favorites = nil
     return favLoad()
