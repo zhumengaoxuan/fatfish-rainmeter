@@ -428,7 +428,8 @@ end
 
 local hoverIdx = -1
 
-local function ring()
+local 
+function ring()
     local target = (dragIdx and dragIdx >= 1) and dragIdx or (hoverIdx >= 0 and hoverIdx + 1 or -1)
     if target and target >= 1 and target <= count and dragIdx < 1 then
         local c, r, x, y = 1, 1
@@ -836,6 +837,19 @@ function reloadNotes()
     return count
 end
 
+-- targetCell 的包装：目标列/行越界时它会先建列/建行并返回 -1，
+-- 这里负责 layout() 后再算一次。所有拖拽路径统一走这个，别再各写一遍。
+function targetCellSmart(x, y)
+    local c, r, ok = targetCell(x, y)
+    if ok and (not c or c < 1 or not r or r < 1) then
+        layout()
+        if favOpen then favMaskFit() end
+        c, r, ok = targetCell(x, y)
+    end
+    return c, r, ok
+end
+
+
 function boot()
     resolvePaths()
     loadAuto()
@@ -1090,12 +1104,7 @@ function drag(x, y)
         setOpt('GhostCard', 'X', ghostX); setOpt('GhostCard', 'Y', ghostY)
         setOpt('GhostName', 'X', ghostX + rnd(80 * scale)); setOpt('GhostName', 'Y', ghostY + rnd(20 * scale)); setOpt('GhostName', 'StringAlign', 'CenterCenter'); setOpt('GhostName', 'FontSize', rnd(9 * scale))
         setOpt('GhostText', 'X', ghostX + rnd(14 * scale)); setOpt('GhostText', 'Y', ghostY + rnd(40 * scale))
-        local c, r, ok = targetCell(x, y)
-        -- 目标列越界时 targetCell 会先建列并返回 c=-1，需要重算一次（和卡片拖拽一致）
-        if ok and (not c or c < 1) then
-            layout()
-            c, r, ok = targetCell(x, y)
-        end
+        local c, r, ok = targetCellSmart(x, y)
         if ok and c and r then
             local _, cardW = metrics()
             setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
@@ -1126,11 +1135,7 @@ function drag(x, y)
         hideCard(dragIdx)
         showGhost(dragIdx)
     end
-    local c, r, ok = targetCell(x, y)
-    if ok and c < 1 then
-        layout()
-        c, r, ok = targetCell(x, y)
-    end
+    local c, r, ok = targetCellSmart(x, y)
     if ok then
         dragTo = r
         dragCol = c
@@ -2190,12 +2195,7 @@ function dragFav(x, y)
     end
     favZonePaint(true)
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
-    local c, r, ok = targetCell(ex, y)
-    if ok and (not c or c < 1) then
-        layout()
-        favMaskFit()
-        c, r, ok = targetCell(ex, y)
-    end
+    local c, r, ok = targetCellSmart(ex, y)
     if ok and c and c >= 1 then
         -- 和拖便签一致：高亮目标格，而不是整列
         local _, cardW = metrics()
@@ -2247,15 +2247,7 @@ function favDrop(x, y)
         favDelete(idx)                    -- 写回收记录后删除
     else
         local ex = favEdgeX(x or 0)
-        local c, r, ok = targetCell(ex, y or 0)
-        if ok and (not c or c < 1) then
-            -- 刚建的列就是目标列；列宽会随列数变化，不能拿旧 ex 重算
-            layout()
-            favMaskFit()
-            c = cols
-            r = math.max(1, r or 1)
-            ok = true
-        end
+        local c, r, ok = targetCellSmart(ex, y or 0)
         if ok and c and c >= 1 then
             favRestore(idx, colDate(c), r)   -- 落到目标列的那一格
         end
