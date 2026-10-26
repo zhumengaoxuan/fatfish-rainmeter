@@ -471,7 +471,8 @@ local function cardShape(m, isAI, th)
     local fill, stroke = th.card, th.stroke
     if isAI then fill, stroke = '26,58,74,240', '120,220,255,95' end
     setOpt('Card' .. m, 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rr .. ' | Fill Color ' .. fill .. ' | StrokeWidth ' .. math.max(1, rnd(1 * scale)) .. ' | Stroke Color ' .. stroke)
-    setOpt('Head' .. m, 'Shape', 'Rectangle 0,0,' .. (cardW - 2) .. ',' .. rnd(26 * scale) .. ',' .. rnd(10 * scale) .. ' | Fill Color 176,158,255,24')
+    -- 标题栏不透明，盖住滚上来的正文；颜色跟卡片一致
+    setOpt('Head' .. m, 'Shape', 'Rectangle 0,0,' .. (cardW - 2) .. ',' .. rnd(26 * scale) .. ',' .. rnd(10 * scale) .. ' | Fill Color ' .. fill)
     setOpt('Name' .. m, 'FontSize', rnd(8 * scale))
     setOpt('Name' .. m, 'FontColor', isAI and '120,220,255,255' or (th.accent .. ',235'))
     setOpt('Del' .. m, 'FontSize', rnd(12 * scale))
