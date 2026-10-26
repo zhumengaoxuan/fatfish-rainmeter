@@ -1091,6 +1091,11 @@ function drag(x, y)
         setOpt('GhostName', 'X', ghostX + rnd(80 * scale)); setOpt('GhostName', 'Y', ghostY + rnd(20 * scale)); setOpt('GhostName', 'StringAlign', 'CenterCenter'); setOpt('GhostName', 'FontSize', rnd(9 * scale))
         setOpt('GhostText', 'X', ghostX + rnd(14 * scale)); setOpt('GhostText', 'Y', ghostY + rnd(40 * scale))
         local c, r, ok = targetCell(x, y)
+        -- 目标列越界时 targetCell 会先建列并返回 c=-1，需要重算一次（和卡片拖拽一致）
+        if ok and (not c or c < 1) then
+            layout()
+            c, r, ok = targetCell(x, y)
+        end
         if ok and c and r then
             local _, cardW = metrics()
             setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
