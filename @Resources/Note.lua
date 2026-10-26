@@ -1,3 +1,18 @@
+--[[
+FatFishNote / Note.lua
+分区（自上而下）：
+  1. 常量与工具        num/clamp/rnd/clean/dateAdd/dateDiff/readFile
+  2. 数据层            parse/serialize/writeAll/insertAt/autoGen/autoWrite/reloadNotes
+  3. 布局              metrics/buildColumns/slotPos/layout
+  4. 卡片与主题        cardShape/updateCard/ring/placeSwatches/setCardTheme
+  5. 跑马灯与天气      marqueeApply/marqueeAdvance/relayoutWeather
+  6. 拖拽              beginDrag/beginNewDrag/drag/drop/showGhost
+  7. 编辑              openBox/edit/rename/commit/cancel
+  8. 收藏库            favLoad/favRender/favDragStart/dragFav/favDrop/favRestore/favDelete
+  9. 命令行接口        autoDump/autoWrite/reloadAuto/reloadNotes/favCount 等（外部调用，勿删）
+约定：ini 里通过 !CommandMeasure 调用的函数都是全局函数；local 函数只在文件内可见。
+]]
+
 -- FatFishNote.lua v3 —— 列=日期 / 翻页 / 主题 / AI 导入 / 日天气
 local MAXN = 30
 local B_CARD_W, B_GAP_X, B_MARGIN, B_HEADER, B_GAP_Y, B_BOTTOM, B_CARD_H = 240, 24, 28, 104, 8, 16, 124
@@ -83,7 +98,6 @@ local function clean(s)
     if #s > 300 then s = s:sub(1, 300) end
     return s
 end
-local function charLen(s) local i, n = 1, 0 while i <= #s do local b = string.byte(s, i) if b and b >= 128 then i = i + 2 else i = i + 1 end n = n + 1 end return n end
 local function cutChars(s, limit)
     local i, n = 1, 0
     while i <= #s do
@@ -105,10 +119,6 @@ local function cleanName(s)
 end
 
 local function todayStr() return os.date('%Y-%m-%d') end
-local function todayTime()
-    local t = os.date('*t')
-    return os.time({ year = t.year, month = t.month, day = t.day, hour = 12 })
-end
 local function dateAdd(str, n)
     local y, m, d = str:match('(%d+)-(%d+)-(%d+)')
     if not y then return str end
@@ -282,7 +292,6 @@ local function currentMonthKey()
 end
 
 
-
 local TRAD = { '春节', '元宵', '端午', '中秋', '重阳', '寒衣', '腊八', '除夕', '七夕', '中元', '龙抬头', '小年', '清明' }
 local TERMS = { '立春','雨水','惊蛰','春分','谷雨','立夏','小满','芒种','夏至','小暑','大暑','立秋','处暑','白露','秋分','寒露','霜降','立冬','小雪','大雪','冬至','小寒','大寒' }
 
@@ -293,16 +302,6 @@ local function isDotDay(t)
     return false
 end
 
-function dumpDots()
-    local mk = currentMonthKey()
-    for d = 1, 31 do
-        local mm = SKIN:GetMeasure('CN' .. d)
-        local v = mm and mm:GetStringValue() or ''
-        if v ~= '' then
-            SKIN:Bang('!Log', string.format('CALDOT %s-%02d cn=%s dot=%s', mk, d, v, tostring(isDotDay(v))), 'Notice')
-        end
-    end
-end
 
 local function isFestivalText(t)
     if not t or t == '' then return false end
@@ -532,8 +531,6 @@ function leaveCard(mx, my)
     if (dragIdx and dragIdx >= 1) or NEW_DRAG then return end
     swHidePending()
 end
-
-function swHide(m) leaveCard() end
 
 function swHidePending()
     for k = 1, 4 do hide('Sw_' .. k) end
@@ -951,13 +948,6 @@ function lower(i)
     writeAll(); layout()
 end
 
-function select(i)
-    i = tonumber(i) or -1
-    if i < 1 or i > count then return end
-    sel = i
-    ring()
-    SKIN:Bang('!Redraw')
-end
 
 function pagePrev()
     if boardLocked() then return end
@@ -978,21 +968,6 @@ end
 local SWCOL = { '176,158,255', '120,180,255', '110,220,190', '255,180,120' }
 local swPending = nil
 
-function swHideNow(m) end
-
-function swShow(m) hoverCard(m) end
-
-function swHide(m)
-    swPending = m
-    SKIN:Bang('!CommandMeasure', 'SwTimer', 'Execute 1')
-end
-
-
-
-function menuTheme1() setTheme(1) end
-function menuTheme2() setTheme(2) end
-function menuTheme3() setTheme(3) end
-function menuTheme4() setTheme(4) end
 
 -- ===== 拖拽 =====
 local function showGhost(i)
@@ -1012,17 +987,6 @@ local function hideGhost()
     end
 end
 
-local function normalize()
-    for a = 2, #notes do
-        local k = notes[a]
-        local b = a - 1
-        while b >= 1 and (notes[b].date or '') > (k.date or '') do
-            notes[b + 1] = notes[b]
-            b = b - 1
-        end
-        notes[b + 1] = k
-    end
-end
 
 local function insertAt(date, row, note)
     local same = {}
@@ -1673,48 +1637,6 @@ function clearSkip()
     SKIN:Bang('!Log', 'clearSkip: 已恢复可见日期的自动便签', 'Notice')
 end
 
-function menuCity1() SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('北京')") end
-function menuCity2() SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('大同')") end
-function menuCity3() SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('太原')") end
-function menuCity4() SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('上海')") end
-function menuCity5() SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('广州')") end
-function menuCity6() SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('成都')") end
-function dumpLunar()
-    local f = io.open(resDir() .. 'lunar_debug.txt', 'wb')
-    local names = { 'LunarDate', 'LunarFest', 'LunarTerm', 'LunarFirst', 'LunarLast' }
-    for _, n in ipairs(names) do
-        local m = SKIN:GetMeasure(n)
-        f:write(n .. '=[' .. tostring(m and m:GetStringValue()) .. ']' .. '\r\n')
-    end
-    for d = 1, 5 do
-        local m = SKIN:GetMeasure('CN' .. d)
-        f:write('CN' .. d .. '=[' .. tostring(m and m:GetStringValue()) .. ']' .. '\r\n')
-    end
-    f:write('Y=' .. tostring(SKIN:GetVariable('Y')) .. ' M=' .. tostring(SKIN:GetVariable('M')) .. ' D=' .. tostring(SKIN:GetVariable('D')) .. '\r\n')
-    f:close()
-end
-function dumpCN24()
-    local m = SKIN:GetMeasure('CN24')
-    local v = m and m:GetStringValue() or ''
-    local f = io.open(resDir() .. 'cn24_debug.txt', 'wb')
-    local hex = {}
-    for i = 1, #v do hex[#hex+1] = string.format('%02X', string.byte(v, i)) end
-    f:write(v .. '\r\n' .. table.concat(hex, ' ') .. '\r\nfest=' .. tostring(isFestivalText(v)))
-    f:close()
-end
-function dumpRight()
-    for _, n in ipairs({ 'WeatherText', 'LunarLine', 'ClockText' }) do
-        local m = SKIN:GetMeter(n)
-        if m then
-            local x = m:GetX(true) or -1
-            local y = m:GetY(true) or -1
-            local ww = nil
-            local ok, v = pcall(function() return m:GetW() end)
-            if ok then ww = v end
-            SKIN:Bang('!Log', string.format('RIGHT %s x=%s y=%s w=%s align=%s text=%s', n, tostring(x), tostring(y), tostring(ww), tostring(m:GetOption('StringAlign')), tostring(m:GetOption('Text'))), 'Notice')
-        end
-    end
-end
 local WX = { ww = 0, wl = 0, sW = 1, sL = 1 }
 
 local function charCount(s)
@@ -1791,12 +1713,6 @@ local function bandGeometry()
     return w - rnd(16 * scale) - bandW, bandW
 end
 
-local function fitChars(full, bandW)
-    local n = charCount(full)
-    local m = n
-    while m > 2 and estimateW(sliceGBK(full, 1, m)) > bandW - 8 do m = m - 1 end
-    return n, m
-end
 
 function marqueeApply()
     local bandX, bandW = bandGeometry()
@@ -1875,46 +1791,8 @@ function marqueeAdvance()
     if WX.aL == 1 then WX.stL = (tonumber(WX.stL) or 0) + step; moved = true end
     if moved then marqueeApply() end
 end
-function dumpMarquee()
-    SKIN:Bang('!Log', string.format('MARQ ww=%s wl=%s SW=%s dxW=%s dxL=%s', tostring(WX.ww), tostring(WX.wl), tostring(SKIN:GetVariable('SW')), tostring(WX.dxW), tostring(WX.dxL)), 'Notice')
-end
-function wincheck()
-    local skinW = tonumber(SKIN:GetVariable('SW')) or 560
-    local names = { 'Panel', 'TitleText', 'WeatherText', 'LunarLine', 'ClockText', 'DateText', 'NewZone', 'NewZoneText', 'NewZoneHint', 'Handle', 'CalMarks', 'TopDivider', 'GhostCard', 'SelRing', 'DropHint' }
-    for _, n in ipairs(names) do
-        local m = SKIN:GetMeter(n)
-        if m then
-            local x = m:GetX(true) or 0
-            local y = m:GetY(true) or 0
-            local ww = 0
-            local ok, v = pcall(function() return m:GetW() end)
-            if ok and tonumber(v) then ww = tonumber(v) end
-            local sum = x + ww
-            if sum > skinW then
-                SKIN:Bang('!Log', string.format('WINCHK %s x=%s w=%s sum=%s skinW=%s vis=%s', n, tostring(x), tostring(ww), tostring(sum), tostring(skinW), tostring(m:GetOption('Hidden'))), 'Notice')
-            end
-        end
-    end
-end
-function diagAuto()
-end
-function diagW()
-    local m, cw, gx, hd, gy, bt, ch = metrics()
-end
-function dumpMq()
-    SKIN:Bang('!Log', string.format('MQ ww=%s wl=%s aW=%s aL=%s offW=%s offL=%s wtext=[%s]', tostring(WX.ww), tostring(WX.wl), tostring(WX.aW), tostring(WX.aL), tostring(WX.offW), tostring(WX.offL), tostring(SKIN:GetVariable('weatherText'))), 'Notice')
-end
 
 -- 预览：把右栏两行替换成长文本，观察滚动与渐隐
-function previewLong()
-    local w = '大同 6° 晴 · 明天小雨 4~11° · 后天多云转晴 3~13° · 西北风 4 级 · 湿度 46% · 空气质量 良 · 紫外线中等'
-    local l = '农历九月十五 · 霜降 · 重阳节 · 世界卒中日 · 宜出行 忌动土 · 冲兔煞东 · 值神金匮'
-    SKIN:Bang('!SetVariable', 'weatherText', w)
-    SKIN:Bang('!SetVariable', 'lunarText', l)
-    WX.ww = estimateW(w, rnd(9 * scale))
-    WX.wl = estimateW(l, rnd(9 * scale))
-    marqueeApply()
-end
 
 -- ===== 收藏库 =====
 local FAV_FILE, FAV_ALT
@@ -2501,7 +2379,3 @@ function favClick(n)
     favRestore(idx)
 end
 
-function favRight(n)
-    local idx = favPage * FAV_PER + (tonumber(n) or 0) + 1
-    favDelete(idx)
-end
