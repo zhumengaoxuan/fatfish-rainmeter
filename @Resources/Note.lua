@@ -2389,6 +2389,109 @@ function dropCopy(x, y)
     SKIN:Bang('!Redraw')
 end
 
+
+-- ===== 右键拖动收藏条目：复制到板子，收藏保留 =====
+function beginFavCopy(i)
+    if not favOpen then return end
+    local n = tonumber(i) or 0
+    local list = favLoad()
+    local idx = (FAVUI.scroll or 0) + n + 1
+    local it = list[idx]
+    if not it then return end
+    FAVUI.favCopy = { i = n, idx = idx, pending = true, moved = false }
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale)
+        .. ' | Fill Color 34,44,58,210 | StrokeWidth 1 | Stroke Color 120,220,255,190')
+    setOpt('GhostName', 'Text', it.name)
+    setOpt('GhostText', 'Text', it.text)
+    setOpt('GhostName', 'FontSize', rnd(9 * scale))
+end
+
+function dragFavCopy(x, y)
+    local st = FAVUI.favCopy
+    if not st or not st.pending and not st.moved then return end
+    if st.pending then
+        if not st.sx then st.sx, st.sy = x, y end
+        if math.sqrt((x - st.sx) ^ 2 + (y - st.sy) ^ 2) < 6 then return end
+        st.pending = false
+        st.moved = true
+    end
+    local list = favLoad()
+    local it = list[st.idx]
+    if not it then return end
+    local gx = x - rnd(80 * scale)
+    local gy = y - rnd(20 * scale)
+    setOpt('GhostCard', 'X', gx); setOpt('GhostCard', 'Y', gy)
+    setOpt('GhostName', 'X', gx + rnd(14 * scale)); setOpt('GhostName', 'Y', gy + rnd(8 * scale))
+    setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
+    show('GhostCard'); show('GhostName'); show('GhostText')
+
+    local c, r, ok = targetCellSmart(x, y)
+    if ok and c and c >= 1 then
+        local _, cardW = metrics()
+        local hx, hy = slotPos(r, c)
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
+            .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+        setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
+        show('DropHint')
+        FAVUI.favCopy.col, FAVUI.favCopy.row = c, r
+    else
+        hide('DropHint')
+        FAVUI.favCopy.col, FAVUI.favCopy.row = nil, nil
+    end
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+end
+
+function dropFavCopy(x, y)
+    local st = FAVUI.favCopy
+    if not st then return end
+    local idx = st.idx
+    local moved = st.moved
+    FAVUI.favCopy = nil
+    hide('DropHint')
+    hideGhost()
+    SKIN:Bang('!CommandMeasure', 'MeasureMouseR', 'Stop')
+    if not moved then return end
+
+    -- 拖进新建区 = 删除该收藏
+    if x and y and favZoneHit(x, y) then
+        favDelete(idx)
+        favRender()
+        SKIN:Bang('!Redraw')
+        return
+    end
+
+    local c, r, ok = targetCellSmart(x or 0, y or 0)
+    if ok and c and c >= 1 then
+        local list = favLoad()
+        local it = list[idx]
+        if it then
+            local d = colDate(c)
+            insertAt(d, math.max(1, r or 1), {
+                date = d, name = it.name, text = it.text, src = 'user', theme = it.theme or 1,
+            })
+            writeAll()
+            layout()
+            autoGen()
+            layout()
+        end
+    end
+    if favOpen then favRender() end
+    SKIN:Bang('!UpdateMeter', '*')
+    SKIN:Bang('!Redraw')
+end
+
+-- 右键拖动总入口：便签复制 / 收藏复制 二选一
+function dragMouseR(x, y)
+    if COPY and COPY.idx then dragCopy(x, y); return end
+    if FAVUI and FAVUI.favCopy then dragFavCopy(x, y); return end
+end
+
+function dropMouseR(x, y)
+    if COPY and COPY.idx then dropCopy(x, y); return end
+    if FAVUI and FAVUI.favCopy then dropFavCopy(x, y); return end
+end
+
 function favToggle()
     favOpen = not favOpen
     if favOpen then
