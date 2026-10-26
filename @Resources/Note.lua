@@ -1866,6 +1866,7 @@ end
 local function favHideAll()
     hide('FavMask'); hide('FavPanel'); hide('FavTitle'); hide('FavHint')
     hide('FavPrev'); hide('FavNext'); hide('FavClose'); hide('FavEmpty'); hide('FavBlocker')
+    hide('FavBar'); hide('FavBarThumb')
     for i = 0, FAV_PER - 1 do
         hide('FavShape' .. i); hide('FavText' .. i)
     end
