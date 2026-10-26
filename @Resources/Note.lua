@@ -456,6 +456,7 @@ end
 
 local function hideCard(i)
     local m = i - 1
+    setOpt('CardClip' .. m, 'Shape', 'Rectangle -100,-100,1,1,0 | Fill Color 255,255,255,255 | StrokeWidth 0')
     for _, p in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do hide(p .. m) end
 
 end
@@ -471,18 +472,17 @@ local function cardShape(m, isAI, th)
     local fill, stroke = th.card, th.stroke
     if isAI then fill, stroke = '26,58,74,240', '120,220,255,95' end
     setOpt('Card' .. m, 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rr .. ' | Fill Color ' .. fill .. ' | StrokeWidth ' .. math.max(1, rnd(1 * scale)) .. ' | Stroke Color ' .. stroke)
-    -- 标题栏不透明，盖住滚上来的正文；颜色跟卡片一致
-    setOpt('Head' .. m, 'Shape', 'Rectangle 0,0,' .. (cardW - 2) .. ',' .. rnd(26 * scale) .. ',' .. rnd(10 * scale) .. ' | Fill Color ' .. fill)
+    setOpt('Head' .. m, 'Shape', 'Rectangle 0,0,' .. (cardW - 2) .. ',' .. rnd(26 * scale) .. ',' .. rnd(10 * scale) .. ' | Fill Color 176,158,255,24')
     setOpt('Name' .. m, 'FontSize', rnd(8 * scale))
     setOpt('Name' .. m, 'FontColor', isAI and '120,220,255,255' or (th.accent .. ',235'))
     setOpt('Del' .. m, 'FontSize', rnd(12 * scale))
     setOpt('Text' .. m, 'FontSize', rnd(10 * scale))
     setOpt('Text' .. m, 'FontColor', th.head)
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale)))
-    -- 高度给足、由 Card 容器裁剪：实测容器会同时裁掉绘制范围和窗口边界，不会撑大窗口
+    -- 高度给足，由统一的 CardClip 砖墙蒙版裁剪（容器本身不绘制，所以不能拿 Card 当蒙版）
     setOpt('Text' .. m, 'H', 4000)
     setOpt('Text' .. m, 'ClipString', '2')
-    setOpt('Text' .. m, 'Container', 'Card' .. m)
+    setOpt('Text' .. m, 'Container', 'CardClip' .. m)
 end
 
 
@@ -639,7 +639,10 @@ function noteScroll(m, delta)
     cur = cur + delta * lineH
     if cur < 0 then cur = 0 elseif cur > maxOffset then cur = maxOffset end
     SCROLL[note] = cur
-    setOpt('Text' .. m, 'Y', rnd(40 * scale) - cur)
+    local mn = SKIN:GetMeter('Card' .. m)
+    local bx, by = 0, 0
+    if mn then bx = mn:GetX() or 0; by = mn:GetY() or 0 end
+    setOpt('Text' .. m, 'Y', by + rnd(40 * scale) - cur)
     SKIN:Bang('!UpdateMeter', 'Text' .. m)
     SKIN:Bang('!Redraw')
 end
@@ -655,11 +658,15 @@ local function updateCard(i, c, r)
     local nth = THEMES[clamp(tonumber(notes[i].theme) or 1, 1, 4)]
     cardShape(m, notes[i].src == 'ai', nth)
     setOpt('Card' .. m, 'X', x); setOpt('Card' .. m, 'Y', y)
+    local hh = rnd(26 * scale)
+    setOpt('CardClip' .. m, 'Shape', 'Rectangle ' .. (x + 1) .. ',' .. (y + hh + 1) .. ','
+        .. (cardW - 2) .. ',' .. math.max(4, cardH - hh - 2) .. ',' .. rnd(10 * scale)
+        .. ' | Fill Color 255,255,255,255 | StrokeWidth 0')
     setOpt('Head' .. m, 'X', x + 1); setOpt('Head' .. m, 'Y', y + 1)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
     setOpt('Del' .. m, 'X', x + cardW - rnd(24 * scale)); setOpt('Del' .. m, 'Y', y + rnd(14 * scale))
     local off = tonumber(SCROLL[notes[i]]) or 0
-    setOpt('Text' .. m, 'X', rnd(14 * scale)); setOpt('Text' .. m, 'Y', rnd(40 * scale) - off)
+    setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale) - off)
     setOpt('Name' .. m, 'Text', notes[i].name)
     setOpt('Text' .. m, 'Text', notes[i].text)
     for _, pfx in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do
@@ -925,6 +932,7 @@ end
 
 -- targetCell 的包装：目标列/行越界时它会先建列/建行并返回 -1，
 -- 这里负责 layout() 后再算一次。所有拖拽路径统一走这个，别再各写一遍。
+
 function targetCellSmart(x, y)
     local c, r, ok = targetCell(x, y)
     if ok and (not c or c < 1 or not r or r < 1) then
