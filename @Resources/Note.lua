@@ -392,6 +392,60 @@ local function fixedCount()
 end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
+local layout
+local FIXUI = { scroll = 0, hovering = false }
+
+local function fixedMaxScroll()
+    return math.max(0, fixedCount() - math.max(1, rows))
+end
+
+local function fixedPaint()
+    if not FIXUI.hovering or favIsOpen() then
+        hide('FixedBar'); hide('FixedBarThumb')
+        return
+    end
+    local n = fixedCount()
+    local maxS = fixedMaxScroll()
+    if maxS <= 0 then
+        hide('FixedBar'); hide('FixedBarThumb')
+        return
+    end
+    local margin, cardW, gapX, header, gapY = metrics()
+    local fw = fixedW() - gapX
+    local fh = rows * cardH + (rows - 1) * gapY
+    local bw = math.max(2, rnd(3 * scale))
+    local bx = margin + fw - bw - rnd(2 * scale)
+    setOpt('FixedBar', 'X', bx); setOpt('FixedBar', 'Y', header)
+    setOpt('FixedBar', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. fh .. ',' .. rnd(2 * scale) .. ' | Fill Color 255,255,255,28 | StrokeWidth 0')
+    show('FixedBar')
+    local thumbH = math.max(rnd(24 * scale), rnd(fh * rows / n))
+    local span = fh - thumbH
+    local ty = header + (maxS > 0 and rnd(span * FIXUI.scroll / maxS) or 0)
+    setOpt('FixedBarThumb', 'X', bx); setOpt('FixedBarThumb', 'Y', ty)
+    setOpt('FixedBarThumb', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color 176,158,255,190 | StrokeWidth 0')
+    show('FixedBarThumb')
+end
+
+function fixedScroll(delta)
+    if favIsOpen() then return end
+    delta = tonumber(delta) or 0
+    FIXUI.scroll = clamp(FIXUI.scroll + delta, 0, fixedMaxScroll())
+    layout()
+end
+
+function fixedEnter()
+    if favIsOpen() then return end
+    FIXUI.hovering = true
+    fixedPaint()
+    SKIN:Bang('!Redraw')
+end
+
+function fixedLeave()
+    FIXUI.hovering = false
+    fixedPaint()
+    SKIN:Bang('!Redraw')
+end
+
 local function fixedSlotAt(y)
     local _, _, _, header = metrics()
     local n = fixedCount()
@@ -591,6 +645,7 @@ end
 
 function hoverCard(m)
     if boardLocked() then return end
+    if favIsOpen() then return end
     -- 正在拖某张便签时，其它卡片的悬浮一律不响应（否则会残留选中框/色板，卡片还会闪一下）
     if (dragIdx and dragIdx >= 1) or NEW_DRAG then return end
     m = tonumber(m) or -1
@@ -790,6 +845,10 @@ local function updateCard(i, c, r, fixed)
     local x, y
     if fixed then
         x = margin; y = header + (r - 1) * pitch
+        setOpt('Card' .. m, 'MouseScrollUpAction', '[!CommandMeasure NoteLua "fixedScroll(-1)"]')
+        setOpt('Card' .. m, 'MouseScrollDownAction', '[!CommandMeasure NoteLua "fixedScroll(1)"]')
+        setOpt('Card' .. m, 'MouseOverAction', '[!CommandMeasure NoteLua "fixedEnter()"]')
+        setOpt('Card' .. m, 'MouseLeaveAction', '[!CommandMeasure NoteLua "fixedLeave()"]')
     else
         x, y = slotPos(r, c)
     end
@@ -842,7 +901,7 @@ local function applyTheme()
     for i = 0, 5 do setOpt('ColWx' .. i, 'FontColor', '235,238,245,150') end
 end
 
-local function layout()
+layout = function()
     autoReset()
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
     baseDate = dateAdd(todayStr(), -page)
@@ -1039,13 +1098,18 @@ local function layout()
     end
     -- 固定区：按文件顺序、每行一张
     do
-        local fr = 0
+        local maxS = math.max(0, fixedCount() - math.max(1, rows))
+        if FIXUI.scroll > maxS then FIXUI.scroll = maxS end
+        if FIXUI.scroll < 0 then FIXUI.scroll = 0 end
+        local k = 0
         for i = 1, count do
             if notes[i].pin then
-                fr = fr + 1
-                if fr <= rows then updateCard(i, 1, fr, true) else hideCard(i) end
+                k = k + 1
+                local rr = k - FIXUI.scroll
+                if rr >= 1 and rr <= rows then updateCard(i, 1, rr, true) else hideCard(i) end
             end
         end
+        fixedPaint()
     end
     if count == 0 then
         setOpt('EmptyHint', 'X', w / 2); setOpt('EmptyHint', 'Y', header + cardH / 2)
