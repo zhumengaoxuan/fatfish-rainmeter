@@ -344,7 +344,12 @@ local function metrics()
     return rnd(B_MARGIN * s), rnd(B_CARD_W * s), rnd(B_GAP_X * s),
         rnd(144 * s), rnd(B_GAP_Y * s), rnd(B_BOTTOM * s), rnd(B_CARD_H * s)
 end
-local function baseW(c) return B_MARGIN * 2 + c * B_CARD_W + (c - 1) * B_GAP_X end
+local function fixedW()
+    local _, cardW, gapX = metrics()
+    return cardW + gapX
+end
+
+local function baseW(c) return B_MARGIN * 2 + (B_CARD_W + B_GAP_X) + c * B_CARD_W + (c - 1) * B_GAP_X end
 local function baseH(r) return B_HEADER + 24 + r * B_CARD_H + (r - 1) * B_GAP_Y + B_BOTTOM end
 local function maxScaleFor(r)
     local sw, sh = num('screenW'), num('screenH')
@@ -393,7 +398,7 @@ end
 
 local function slotPos(r, c)
     local margin, cardW, gapX, header = metrics()
-    return margin + (c - 1) * (cardW + gapX), header + (r - 1) * pitch
+    return margin + fixedW() + (c - 1) * (cardW + gapX), header + (r - 1) * pitch
 end
 
 local function colDate(c) return dateAdd(baseDate, c - 1) end
@@ -408,7 +413,7 @@ end
 
 local function targetCell(x, y)
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
-    local c = math.floor((x - margin) / (cardW + gapX)) + 1
+    local c = math.floor((x - margin - fixedW()) / (cardW + gapX)) + 1
     local r = math.floor((y - header) / pitch) + 1
     if c < 1 then c = 1 end
     if r < 1 then r = 1 end
@@ -718,13 +723,28 @@ local function layout()
     buildColumns()
     pitch = computePitch(rows, ch, header, bottom, gapY)
     cardH = pitch - gapY
-    local w = margin * 2 + cols * cardW + (cols - 1) * gapX
+    local w = margin * 2 + fixedW() + cols * cardW + (cols - 1) * gapX
     local h = header + rows * cardH + (rows - 1) * gapY + bottom
     SKIN:Bang('!SetVariable', 'SH', h)
     SKIN:Bang('!SetVariable', 'SW', w)
     SKIN:Bang('!SetVariable', 'rows', rows)
     SKIN:Bang('!SetVariable', 'cols', cols)
     applyTheme()
+    -- 固定区骨架（第一步只画区域，不接数据）
+    local fx, fy = margin, header
+    local fw = fixedW() - gapX
+    local fh = rows * cardH + (rows - 1) * gapY
+    setOpt('FixedBg', 'X', fx); setOpt('FixedBg', 'Y', fy)
+    setOpt('FixedBg', 'Shape', 'Rectangle 0,0,' .. fw .. ',' .. fh .. ',' .. rnd(12 * scale)
+        .. ' | Fill Color 40,44,64,120 | StrokeWidth ' .. math.max(1, rnd(1 * scale))
+        .. ' | Stroke Color 176,158,255,60')
+    show('FixedBg')
+    setOpt('FixedTitle', 'X', fx + fw / 2); setOpt('FixedTitle', 'Y', fy + rnd(10 * scale))
+    setOpt('FixedTitle', 'FontSize', rnd(9 * scale))
+    show('FixedTitle')
+    setOpt('FixedDivider', 'X', fx + fw + rnd(gapX / 2 - 1)); setOpt('FixedDivider', 'Y', fy)
+    setOpt('FixedDivider', 'Shape', 'Rectangle 0,0,1,' .. fh .. ',0 | Fill Color 176,158,255,50 | StrokeWidth 0')
+    show('FixedDivider')
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
