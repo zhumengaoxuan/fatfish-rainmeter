@@ -393,7 +393,7 @@ end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
 local layout
-local FIXUI = { scroll = 0, hovering = false, leaveAt = 0 }
+local FIXUI = { scroll = 0, hovering = false, leaveAt = 0, half = '', t = 0, upY = 0, dnY = 0, upBase = 0, dnBase = 0 }
 
 local function fixedMaxScroll()
     return math.max(0, fixedCount() - math.max(1, rows))
@@ -436,6 +436,7 @@ local function fixedPaint()
     setOpt('FixedBarUp', 'FontSize', math.max(6, rnd(7 * scale)))
     setOpt('FixedBarDown', 'X', bx + bw / 2); setOpt('FixedBarDown', 'Y', dnY + aw / 2)
     setOpt('FixedBarDown', 'FontSize', math.max(6, rnd(7 * scale)))
+    FIXUI.upBase, FIXUI.dnBase, FIXUI.upY, FIXUI.dnY = upY, dnY, upY, dnY
     if FIXUI.scroll > 0 then show('FixedBarUp') else hide('FixedBarUp') end
     if FIXUI.scroll < maxS then show('FixedBarDown') else hide('FixedBarDown') end
 end
@@ -470,6 +471,24 @@ function fixedBarClick(mx, my)
         FIXUI.scroll = clamp(FIXUI.scroll + step, 0, maxS)
     end
     layout()
+end
+
+function fixedPage(dir)
+    if favIsOpen() then return end
+    local maxS = fixedMaxScroll()
+    if maxS <= 0 then return end
+    local step = math.max(1, rows)
+    FIXUI.scroll = clamp(FIXUI.scroll + ((dir == 'down') and step or -step), 0, maxS)
+    FIXUI.hovering = true
+    FIXUI.leaveAt = 0
+    layout()
+end
+
+function fixedHalf(h)
+    if favIsOpen() then return end
+    FIXUI.half = h or ''
+    FIXUI.t = 0
+    fixedEnter()
 end
 
 function fixedEnter()
@@ -832,6 +851,28 @@ function autoScrollTick()
         FIXUI.leaveAt = 0
         fixedPaint()
     end
+    -- 进度条箭头跳动：悬停哪半，那个箭头向外弹一下
+    if FIXUI.hovering and FIXUI.half ~= '' and fixedMaxScroll() > 0 then
+        FIXUI.t = FIXUI.t + 0.033
+        local off = math.abs(math.sin(FIXUI.t * 7)) * 3 * scale
+        if FIXUI.half == 'up' then
+            setOpt('FixedBarUp', 'Y', FIXUI.upBase - off)
+            setOpt('FixedBarUp', 'FontColor', '176,158,255,255')
+            setOpt('FixedBarDown', 'Y', FIXUI.dnBase)
+            setOpt('FixedBarDown', 'FontColor', '176,158,255,120')
+        else
+            setOpt('FixedBarDown', 'Y', FIXUI.dnBase + off)
+            setOpt('FixedBarDown', 'FontColor', '176,158,255,255')
+            setOpt('FixedBarUp', 'Y', FIXUI.upBase)
+            setOpt('FixedBarUp', 'FontColor', '176,158,255,120')
+        end
+        SKIN:Bang('!UpdateMeter', 'FixedBarUp')
+        SKIN:Bang('!UpdateMeter', 'FixedBarDown')
+        SKIN:Bang('!Redraw')
+    elseif FIXUI.half == '' then
+        setOpt('FixedBarUp', 'Y', FIXUI.upBase)
+        setOpt('FixedBarDown', 'Y', FIXUI.dnBase)
+    end
     if dragIdx and dragIdx >= 1 then return end
     if NEW_DRAG then return end
     local m = hoverIdx
@@ -987,9 +1028,13 @@ layout = function()
     show('FixedDivider')
     -- 透明 hover 条：盖住卡片右侧到分隔线之间的空隙，让进度条所在区域仍然算「在常驻区里」
     local hoverW = math.max(1, rnd(gapX))
-    setOpt('FixedHover', 'X', margin + cardW); setOpt('FixedHover', 'Y', header)
-    setOpt('FixedHover', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. fh .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
-    show('FixedHover')
+    local hh = math.floor(fh / 2)
+    setOpt('FixedHoverTop', 'X', margin + cardW); setOpt('FixedHoverTop', 'Y', header)
+    setOpt('FixedHoverTop', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. hh .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
+    show('FixedHoverTop')
+    setOpt('FixedHoverBottom', 'X', margin + cardW); setOpt('FixedHoverBottom', 'Y', header + hh)
+    setOpt('FixedHoverBottom', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. (fh - hh) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
+    show('FixedHoverBottom')
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
