@@ -403,7 +403,7 @@ end
 
 local function fixedPaint()
     if favIsOpen() then
-        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown')
+        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedHover')
         return
     end
     local n = fixedCount()
@@ -3143,6 +3143,12 @@ function favToggle()
     favPulse()
     favOpen = not favOpen
     if favOpen then
+        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedHover')
+    else
+        fixedPaint()
+        show('FixedHover')
+    end
+    if favOpen then
         FAVUI.ui = 'fav'
         FAVUI.hover = -1
         FAVUI.skipUntil = os.clock() + 0.35
@@ -3176,6 +3182,8 @@ function favClose()
     FAVUI.ui = 'normal'
     leaveFav()
     favHideAll()
+    fixedPaint()
+    show('FixedHover')
     SKIN:Bang('!Redraw')
 end
 
