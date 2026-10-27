@@ -474,6 +474,22 @@ function fixedBarClick(mx, my)
     layout()
 end
 
+function fixedClick(my)
+    if favIsOpen() then return end
+    my = tonumber(my) or 0
+    local maxS = fixedMaxScroll()
+    if maxS <= 0 then return end
+    local hm = SKIN:GetMeter('FixedHover')
+    local h = (hm and hm:GetH()) or 0
+    local step = math.max(1, rows)
+    local delta = (my < h / 2) and -step or step
+    FIXUI.scroll = clamp(FIXUI.scroll + delta, 0, maxS)
+    FIXUI.hovering = true
+    FIXUI.lastAct = os.clock()
+    FIXUI.sawLeave = false
+    layout()
+end
+
 function fixedPage(dir)
     if favIsOpen() then return end
     local maxS = fixedMaxScroll()
@@ -857,25 +873,19 @@ end
 
 function autoScrollTick()
 
-    -- 进度条箭头跳动：悬停哪半，那个箭头向外弹一下
-    if FIXUI.hovering and FIXUI.half ~= '' and fixedMaxScroll() > 0 then
+    -- 进度条悬停：两个箭头交替轻微跳动，提示可点
+    if FIXUI.hovering then
         FIXUI.t = FIXUI.t + 0.033
-        local off = math.abs(math.sin(FIXUI.t * 7)) * 3 * scale
-        if FIXUI.half == 'up' then
-            setOpt('FixedBarUp', 'Y', FIXUI.upBase - off)
-            setOpt('FixedBarUp', 'FontColor', '176,158,255,255')
-            setOpt('FixedBarDown', 'Y', FIXUI.dnBase)
-            setOpt('FixedBarDown', 'FontColor', '176,158,255,120')
-        else
-            setOpt('FixedBarDown', 'Y', FIXUI.dnBase + off)
-            setOpt('FixedBarDown', 'FontColor', '176,158,255,255')
-            setOpt('FixedBarUp', 'Y', FIXUI.upBase)
-            setOpt('FixedBarUp', 'FontColor', '176,158,255,120')
-        end
+        local a = math.abs(math.sin(FIXUI.t * 7))
+        local b = math.abs(math.sin(FIXUI.t * 7 + 2.2))
+        setOpt('FixedBarUp', 'Y', FIXUI.upBase - a * 2 * scale)
+        setOpt('FixedBarDown', 'Y', FIXUI.dnBase + b * 2 * scale)
+        setOpt('FixedBarUp', 'FontColor', '176,158,255,220')
+        setOpt('FixedBarDown', 'FontColor', '176,158,255,220')
         SKIN:Bang('!UpdateMeter', 'FixedBarUp')
         SKIN:Bang('!UpdateMeter', 'FixedBarDown')
         SKIN:Bang('!Redraw')
-    elseif FIXUI.half == '' then
+    else
         setOpt('FixedBarUp', 'Y', FIXUI.upBase)
         setOpt('FixedBarDown', 'Y', FIXUI.dnBase)
     end
@@ -1036,13 +1046,9 @@ layout = function()
     -- 点击区：从卡片右缘开始，向右多留 10px（仍在分隔线左侧），并可按 #HITDBG# 显示出来
     local hoverW = math.max(1, rnd(gapX) + rnd(16 * scale))
     local dbgA = (tonumber(SKIN:GetVariable('HITDBG')) or 0) > 0 and 85 or 1
-    local hh = math.floor(fh / 2)
-    setOpt('FixedHoverTop', 'X', margin + cardW); setOpt('FixedHoverTop', 'Y', header)
-    setOpt('FixedHoverTop', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. hh .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
-    show('FixedHoverTop')
-    setOpt('FixedHoverBottom', 'X', margin + cardW); setOpt('FixedHoverBottom', 'Y', header + hh)
-    setOpt('FixedHoverBottom', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. (fh - hh) .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
-    show('FixedHoverBottom')
+    setOpt('FixedHover', 'X', margin + cardW); setOpt('FixedHover', 'Y', header)
+    setOpt('FixedHover', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. fh .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
+    show('FixedHover')
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
