@@ -384,11 +384,41 @@ local function fixedHit(x, y)
     return x >= fx and x <= fx + fw and y >= fy and y <= fy + fh
 end
 
+
 local function fixedCount()
     local n = 0
     for i = 1, count do if notes[i].pin then n = n + 1 end end
     return n
 end
+
+-- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
+local function fixedSlotAt(y)
+    local _, _, _, header = metrics()
+    local n = fixedCount()
+    local r = math.floor(((y or 0) - header) / pitch + 0.5) + 1
+    if r < 1 then r = 1 end
+    if r > n + 1 then r = n + 1 end
+    return r
+end
+
+local function pinnedInsertIndex(k)
+    local seen = 0
+    for i = 1, count do
+        if notes[i].pin then
+            seen = seen + 1
+            if seen == k then return i end
+        end
+    end
+    return count + 1
+end
+
+local function insertPinnedAt(k, note)
+    note.pin = true
+    local idx = pinnedInsertIndex(k)
+    table.insert(notes, idx, note)
+    count = #notes
+end
+
 
 local function buildColumns()
     local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG or (FAVUI and (FAVUI.drag or FAVUI.dropping))
@@ -464,7 +494,9 @@ local function targetCell(x, y)
 end
 
 local hintFixed = false
+local hintFixedSlot = 1
 local newFixed = false
+local newFixedSlot = 1
 
 local hoverIdx = -1
 
@@ -1400,7 +1432,8 @@ function drag(x, y)
             hintValid = true
             dragCol, dragRow = nil, nil
             local margin, cardW, gapX, header = metrics()
-            local fr = math.min(rows, fixedCount() + 1)
+            local fr = fixedSlotAt(y)
+            newFixedSlot = fr
             setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
                 .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
             setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
@@ -1451,7 +1484,8 @@ function drag(x, y)
         dragCol = nil
         dragTo = nil
         local margin, cardW, gapX, header = metrics()
-        local fr = math.min(rows, fixedCount() + 1)
+        local fr = fixedSlotAt(y)
+        hintFixedSlot = fr
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
             .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
         setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
@@ -1521,6 +1555,20 @@ function drop(mx, my)
         end
     end
 
+    -- 拖进常驻区：提前拦下，避免落进下面的色板/时间列逻辑
+    if mx and my and dragIdx and dragIdx >= 1 and fixedHit(mx, my) then
+        local moved = table.remove(notes, dragIdx)
+        insertPinnedAt(hintFixedSlot or 1, moved)
+        sel = nil
+        dragIdx = -1; pending = false; dragCol = nil; dragTo = nil
+        hide('DropHint'); hideGhost()
+        setOpt('NewZoneText', 'Text', '拖出新便签')
+        writeAll(); layout()
+        SKIN:Bang('!UpdateMeter', '*')
+        SKIN:Bang('!Redraw')
+        return
+    end
+
     if mx and my and dragIdx and dragIdx >= 1 then
         local m = dragIdx - 1
         for k = 1, 4 do
@@ -1546,8 +1594,7 @@ function drop(mx, my)
             hintValid = false
             pending = false
             dragCol, dragRow = nil, nil
-            notes[#notes + 1] = { date = todayStr(), name = defaultName(), text = '新便签', src = 'user', pin = true }
-            count = #notes
+            insertPinnedAt(newFixedSlot or 1, { date = todayStr(), name = defaultName(), text = '新便签', src = 'user' })
             writeAll(); layout()
             return
         end
@@ -1581,8 +1628,9 @@ function drop(mx, my)
     for i = 1, count do snap[i] = { note = notes[i], date = notes[i].date } end
     hide('DropHint')
     if wasDragging and hadFixed then
-        notes[from].pin = true
-        sel = from
+        local moved = table.remove(notes, from)
+        insertPinnedAt(hintFixedSlot or 1, moved)
+        sel = nil
         hintFixed = false
         writeAll()
     elseif wasDragging and notes[from].pin and hintValid and dragCol and dragCol >= 1 then
@@ -2548,7 +2596,8 @@ function dragFav(x, y)
     if fixedHit(x, y) then
         -- 指向常驻区：预览框落在常驻区的下一个空位，而不是时间列
         local margin, cardW, gapX, header = metrics()
-        local fr = math.min(rows, fixedCount() + 1)
+        local fr = fixedSlotAt(y)
+        FAVUI.dropPinSlot = fr
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
             .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
         setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
@@ -2615,8 +2664,8 @@ function favDrop(x, y)
     if x and y and favZoneHit(x, y) then
         favDelete(idx)                    -- 写回收记录后删除
     elseif x and y and fixedHit(x, y) then
-        -- 拖进常驻区：恢复成固定便签（不落日期列）
-        favRestore(idx, todayStr(), nil, true)
+        -- 拖进常驻区：恢复成固定便签（不落日期列），按预览位插入
+        favRestore(idx, todayStr(), nil, true, FAVUI.dropPinSlot)
         FAVUI.dropping = nil
         layout()
         favMaskFit()
@@ -3023,15 +3072,17 @@ function favDelete(idx)
     favRender()
 end
 
-function favRestore(idx, date, row, pin)
+function favRestore(idx, date, row, pin, pinSlot)
     idx = tonumber(idx)
     local list = favLoad()
     if not idx or not list[idx] then return end
     local it = table.remove(list, idx)
     date = date or todayStr()
     local note = { date = date, name = it.name, text = it.text, src = 'user', theme = it.theme or 1, pin = pin or nil }
+    if pin then
+        insertPinnedAt(pinSlot or 1, note)
     -- 指定了目标格就用 insertAt，和拖卡片落点一致
-    if row then
+    elseif row then
         insertAt(date, tonumber(row) or 1, note)
     else
         local ins = #notes + 1
