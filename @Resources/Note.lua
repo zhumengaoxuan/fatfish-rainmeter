@@ -876,12 +876,12 @@ function autoScrollTick()
     -- 进度条悬停：两个箭头交替轻微跳动，提示可点
     if FIXUI.hovering then
         FIXUI.t = FIXUI.t + 0.033
-        local a = math.abs(math.sin(FIXUI.t * 7))
-        local b = math.abs(math.sin(FIXUI.t * 7 + 2.2))
-        setOpt('FixedBarUp', 'Y', FIXUI.upBase - a * 2 * scale)
-        setOpt('FixedBarDown', 'Y', FIXUI.dnBase + b * 2 * scale)
-        setOpt('FixedBarUp', 'FontColor', '176,158,255,220')
-        setOpt('FixedBarDown', 'FontColor', '176,158,255,220')
+        local a = math.abs(math.sin(FIXUI.t * 9))
+        local b = math.abs(math.sin(FIXUI.t * 9 + 2.2))
+        setOpt('FixedBarUp', 'Y', FIXUI.upBase - a * 5 * scale)
+        setOpt('FixedBarDown', 'Y', FIXUI.dnBase + b * 5 * scale)
+        setOpt('FixedBarUp', 'FontColor', '210,196,255,255')
+        setOpt('FixedBarDown', 'FontColor', '210,196,255,255')
         SKIN:Bang('!UpdateMeter', 'FixedBarUp')
         SKIN:Bang('!UpdateMeter', 'FixedBarDown')
         SKIN:Bang('!Redraw')
@@ -1044,9 +1044,11 @@ layout = function()
     show('FixedDivider')
     -- 透明 hover 条：盖住卡片右侧到分隔线之间的空隙，让进度条所在区域仍然算「在常驻区里」
     -- 点击区：从卡片右缘开始，向右多留 10px（仍在分隔线左侧），并可按 #HITDBG# 显示出来
-    local hoverW = math.max(1, rnd(gapX) + rnd(16 * scale))
+    local hoverW = math.max(8, rnd(12 * scale))
     local dbgA = (tonumber(SKIN:GetVariable('HITDBG')) or 0) > 0 and 85 or 1
-    setOpt('FixedHover', 'X', margin + cardW); setOpt('FixedHover', 'Y', header)
+    -- 进度条就在卡片右侧空隙的中线上，判定区以它为中心
+    local hoverX = margin + cardW + gapX / 2 - hoverW / 2
+    setOpt('FixedHover', 'X', hoverX); setOpt('FixedHover', 'Y', header)
     setOpt('FixedHover', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. fh .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
     show('FixedHover')
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
