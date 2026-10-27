@@ -573,6 +573,7 @@ function swatchHover()
 end
 
 function leaveCard(mx, my)
+    autoReset()
     if boardLocked() then return end
     if (dragIdx and dragIdx >= 1) or NEW_DRAG then return end
     swHidePending()
@@ -665,6 +666,64 @@ local function textMetrics()
     return w, fs, viewH, lineH
 end
 
+
+-- ===== 正文无缝自动滚动（悬停触发，向上循环）=====
+local AUTO = { m = -1, off = 0, segH = 0, seg = false, last = 0 }
+
+local function probeTextH(note, w)
+    setOpt('ScrollProbe', 'W', w)
+    setOpt('ScrollProbe', 'Text', note.text)
+    SKIN:Bang('!UpdateMeter', 'ScrollProbe')
+    local pm = SKIN:GetMeter('ScrollProbe')
+    return pm and pm:GetH() or 0
+end
+
+local function autoReset()
+    if AUTO.m >= 0 and AUTO.seg then
+        local m = AUTO.m
+        local i = cardNote[m]
+        if i and notes[i] then
+            setOpt('Text' .. m, 'Text', notes[i].text)
+            SKIN:Bang('!UpdateMeter', 'Text' .. m)
+        end
+    end
+    AUTO.m = -1; AUTO.off = 0; AUTO.segH = 0; AUTO.seg = false; AUTO.last = 0
+end
+
+function autoScrollTick()
+    if dragIdx and dragIdx >= 1 then return end
+    if NEW_DRAG then return end
+    local m = hoverIdx
+    if not m or m < 0 then if AUTO.seg then autoReset() end; return end
+    local i = cardNote[m]
+    local note = i and notes[i]
+    if not note then return end
+    local w, fs, viewH = textMetrics()
+    local h = probeTextH(note, w)
+    if h <= viewH + 1 then
+        if AUTO.seg then autoReset() end
+        return
+    end
+    if AUTO.m ~= m or not AUTO.seg then
+        autoReset()
+        AUTO.m = m; AUTO.seg = true; AUTO.off = 0; AUTO.segH = h; AUTO.last = os.clock()
+        setOpt('Text' .. m, 'Text', note.text .. '#CRLF#' .. note.text)
+        SKIN:Bang('!UpdateMeter', 'Text' .. m)
+        return
+    end
+    local now = os.clock()
+    local dt = now - (AUTO.last or now)
+    AUTO.last = now
+    if dt < 0 or dt > 0.5 then dt = 0.032 end
+    AUTO.off = AUTO.off + dt * 12 * scale
+    if AUTO.off >= AUTO.segH then AUTO.off = 0 end
+    local card = SKIN:GetMeter('Card' .. m)
+    local by = card and card:GetY() or 0
+    setOpt('Text' .. m, 'Y', by + rnd(40 * scale) - rnd(AUTO.off))
+    SKIN:Bang('!UpdateMeter', 'Text' .. m)
+    SKIN:Bang('!Redraw')
+end
+
 function noteScroll(m, delta)
     m = tonumber(m); delta = tonumber(delta) or 0
     local i = cardNote[m]
@@ -749,6 +808,7 @@ local function applyTheme()
 end
 
 local function layout()
+    autoReset()
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
     baseDate = dateAdd(todayStr(), -page)
     buildColumns()
