@@ -400,7 +400,7 @@ local function fixedMaxScroll()
 end
 
 local function fixedPaint()
-    local recent = FIXUI.leaveAt > 0 and (os.clock() - FIXUI.leaveAt) < 0.35
+    local recent = FIXUI.leaveAt > 0 and (os.clock() - FIXUI.leaveAt) < 0.6
     if (not FIXUI.hovering and not recent) or favIsOpen() then
         hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown')
         return
@@ -442,6 +442,9 @@ end
 
 function fixedScroll(delta)
     if favIsOpen() then return end
+    -- 交互即取消待隐藏（相当于打断「抽屉回弹」）
+    FIXUI.hovering = true
+    FIXUI.leaveAt = 0
     delta = tonumber(delta) or 0
     FIXUI.scroll = clamp(FIXUI.scroll + delta, 0, fixedMaxScroll())
     layout()
@@ -449,6 +452,8 @@ end
 
 function fixedBarClick(mx, my)
     if favIsOpen() then return end
+    FIXUI.hovering = true
+    FIXUI.leaveAt = 0
     -- meter 动作里的 $MouseX$/$MouseY$ 是相对该 meter 的，先换算成皮肤坐标
     local hm = SKIN:GetMeter('FixedHover')
     mx = (tonumber(mx) or 0) + ((hm and hm:GetX()) or 0)
@@ -823,7 +828,7 @@ end
 
 function autoScrollTick()
     -- 常驻区进度条的离开宽限期到了就收起来
-    if FIXUI.leaveAt > 0 and not FIXUI.hovering and (os.clock() - FIXUI.leaveAt) >= 0.35 then
+    if FIXUI.leaveAt > 0 and not FIXUI.hovering and (os.clock() - FIXUI.leaveAt) >= 0.6 then
         FIXUI.leaveAt = 0
         fixedPaint()
     end
