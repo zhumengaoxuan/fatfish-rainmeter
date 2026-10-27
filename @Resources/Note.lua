@@ -371,6 +371,25 @@ local function computePitch(r, ch, header, bottom, gapY)
     return p
 end
 
+
+local function fixedRect()
+    local margin, cardW, gapX, header, gapY = metrics()
+    local fw = fixedW() - gapX
+    local fh = rows * cardH + (rows - 1) * gapY
+    return margin, header, fw, fh
+end
+
+local function fixedHit(x, y)
+    local fx, fy, fw, fh = fixedRect()
+    return x >= fx and x <= fx + fw and y >= fy and y <= fy + fh
+end
+
+local function fixedCount()
+    local n = 0
+    for i = 1, count do if notes[i].pin then n = n + 1 end end
+    return n
+end
+
 local function buildColumns()
     local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG or (FAVUI and (FAVUI.drag or FAVUI.dropping))
     if not dragging then
@@ -443,6 +462,8 @@ local function targetCell(x, y)
     end
     return c, r, true
 end
+
+local hintFixed = false
 
 local hoverIdx = -1
 
@@ -764,17 +785,17 @@ local function layout()
     setOpt('DateText', 'X', w - rnd(28 * scale)); setOpt('DateText', 'Y', rnd(50 * scale)); setOpt('DateText', 'FontSize', rnd(9 * scale)); setOpt('DateText', 'StringAlign', 'RightTop'); setOpt('DateText', 'W', rnd(140 * scale))
     setOpt('AddBtn', 'X', w - rnd(61 * scale)); setOpt('AddBtn', 'Y', rnd(15 * scale)); hide('AddBtn'); hide('AddText')
     setOpt('AddText', 'X', w - rnd(44 * scale)); setOpt('AddText', 'Y', rnd(31 * scale)); setOpt('AddText', 'FontSize', rnd(15 * scale))
-    setOpt('PrevBtn', 'X', rnd(42 * scale)); setOpt('PrevBtn', 'Y', rnd(116 * scale)); setOpt('PrevBtn', 'FontSize', rnd(14 * scale))
+    setOpt('PrevBtn', 'X', margin + fixedW() - rnd(24 * scale)); setOpt('PrevBtn', 'Y', rnd(116 * scale)); setOpt('PrevBtn', 'FontSize', rnd(14 * scale))
     setOpt('NextBtn', 'X', w - rnd(42 * scale)); setOpt('NextBtn', 'Y', rnd(116 * scale)); setOpt('NextBtn', 'FontSize', rnd(14 * scale))
     setOpt('PrevBtn', 'FontColor', page < PAGE_MAX and '235,238,245,230' or '235,238,245,102')
     setOpt('NextBtn', 'FontColor', page > 0 and '235,238,245,230' or '235,238,245,102')
-    setOpt('PrevHit', 'X', rnd(28 * scale)); setOpt('PrevHit', 'Y', rnd(104 * scale))
+    setOpt('PrevHit', 'X', margin + fixedW() - rnd(38 * scale)); setOpt('PrevHit', 'Y', rnd(104 * scale))
     setOpt('NextHit', 'X', w - rnd(52 * scale)); setOpt('NextHit', 'Y', rnd(104 * scale))
     setOpt('PrevHit', 'Shape', 'Rectangle 0,0,' .. rnd(24 * scale) .. ',' .. rnd(24 * scale) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
     setOpt('NextHit', 'Shape', 'Rectangle 0,0,' .. rnd(24 * scale) .. ',' .. rnd(24 * scale) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
     show('PrevHit'); show('NextHit')
-    setOpt('TopDivider', 'Shape', 'Rectangle 0,0,' .. (w - rnd(56 * scale)) .. ',1 | Fill Color 255,255,255,18 | StrokeWidth 0')
-    setOpt('TopDivider', 'X', mg); setOpt('TopDivider', 'Y', rnd(104 * scale))
+    setOpt('TopDivider', 'Shape', 'Rectangle 0,0,' .. (w - 2 * margin) .. ',1 | Fill Color 255,255,255,18 | StrokeWidth 0')
+    setOpt('TopDivider', 'X', margin); setOpt('TopDivider', 'Y', rnd(104 * scale))
     show('TopDivider')
     show('TopDivider')
     -- 缩放/布局
@@ -875,7 +896,7 @@ local function layout()
         local m = 'ColHead' .. i
         local wm = 'ColWx' .. i
         if i < cols then
-            local cx = margin + i * (cardW + gapX) + cardW / 2
+            local cx = margin + fixedW() + i * (cardW + gapX) + cardW / 2
             setOpt(m, 'X', cx); setOpt(m, 'Y', topBar + rnd(12 * scale))
             setOpt(m, 'FontSize', rnd(9 * scale))
             local hol = holidayOf(colDate(i + 1))
@@ -896,7 +917,7 @@ local function layout()
             local dh = h - bottom - header
             if dh < 1 then dh = 1 end
             setOpt(m, 'Shape', 'Rectangle 0,0,1,' .. dh .. ' | Fill Color 255,255,255,20')
-            setOpt(m, 'X', margin + (i + 1) * (cardW + gapX) - math.floor(gapX / 2))
+            setOpt(m, 'X', margin + fixedW() + (i + 1) * (cardW + gapX) - math.floor(gapX / 2))
             setOpt(m, 'Y', header)
             show(m)
         else
@@ -1334,6 +1355,22 @@ function drag(x, y)
         hideCard(dragIdx)
         showGhost(dragIdx)
     end
+    if fixedHit(x, y) then
+        hintFixed = true
+        hintValid = true
+        dragCol = nil
+        dragTo = nil
+        local margin, cardW, gapX, header = metrics()
+        local fr = math.min(rows, fixedCount() + 1)
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
+            .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
+        setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
+        show('DropHint')
+        SKIN:Bang('!UpdateMeter', 'DropHint')
+        SKIN:Bang('!Redraw')
+        return
+    end
+    hintFixed = false
     local c, r, ok = targetCellSmart(x, y)
     if ok then
         dragTo = r
@@ -1441,7 +1478,18 @@ function drop(mx, my)
     local snap = {}
     for i = 1, count do snap[i] = { note = notes[i], date = notes[i].date } end
     hide('DropHint')
-    if wasDragging and hintValid and dragCol and dragCol >= 1 then
+    if wasDragging and hintFixed then
+        notes[from].pin = true
+        sel = from
+        hintFixed = false
+        writeAll()
+    elseif wasDragging and notes[from].pin and hintValid and dragCol and dragCol >= 1 then
+        -- 从固定区拖回时间轴：取消固定并落到那一天
+        notes[from].pin = nil
+        notes[from].date = colDate(dragCol)
+        sel = from
+        writeAll()
+    elseif wasDragging and hintValid and dragCol and dragCol >= 1 then
         local list = colLists[dragCol] or {}
         local pos = dragTo
         if list[pos] and list[pos] ~= from then
@@ -1466,7 +1514,7 @@ function drop(mx, my)
     end
     hideGhost()
     setOpt('NewZoneText', 'Text', '拖出新便签')
-    dragIdx = -1; pending = false; dragCol = nil
+    dragIdx = -1; pending = false; dragCol = nil; hintFixed = false
     writeAll()
     layout()
     -- 拖动已有便签到新日期后，同样为新日期补齐自动便签
