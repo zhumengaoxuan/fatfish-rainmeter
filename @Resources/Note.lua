@@ -2595,6 +2595,17 @@ function favDrop(x, y)
     if not list[idx] then favRender(); return end
     if x and y and favZoneHit(x, y) then
         favDelete(idx)                    -- 写回收记录后删除
+    elseif x and y and fixedHit(x, y) then
+        -- 拖进常驻区：恢复成固定便签（不落日期列）
+        favRestore(idx, todayStr(), nil, true)
+        FAVUI.dropping = nil
+        layout()
+        favMaskFit()
+        newZoneReset()
+        if favOpen then favRender() end
+        SKIN:Bang('!UpdateMeter', '*')
+        SKIN:Bang('!Redraw')
+        return
     else
         local ex = favEdgeX(x or 0)
         local c, r, ok = targetCellSmart(ex, y or 0)
