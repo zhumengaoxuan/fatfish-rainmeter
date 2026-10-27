@@ -774,7 +774,12 @@ autoReset = function()
         local i = cardNote[m]
         if i and notes[i] then
             setOpt('Text' .. m, 'Text', notes[i].text)
+            -- 关键：滚动改过 Y，复位时必须一起还原，否则文字停在半截
+            local card = SKIN:GetMeter('Card' .. m)
+            local by = card and card:GetY() or 0
+            setOpt('Text' .. m, 'Y', by + rnd(40 * scale))
             SKIN:Bang('!UpdateMeter', 'Text' .. m)
+            SKIN:Bang('!Redraw')
         end
     end
     AUTO.m = -1; AUTO.off = 0; AUTO.segH = 0; AUTO.seg = false; AUTO.last = 0
