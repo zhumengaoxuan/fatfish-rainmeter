@@ -400,7 +400,7 @@ local function fixedMaxScroll()
 end
 
 local function fixedPaint()
-    if not FIXUI.hovering or favIsOpen() then
+    if favIsOpen() then
         hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown')
         return
     end
@@ -856,14 +856,7 @@ autoReset = function()
 end
 
 function autoScrollTick()
-    -- 常驻区进度条：不再依赖 leave 事件，改为「静默 0.3s 后隐藏」
-    if FIXUI.hovering and FIXUI.sawLeave and (os.clock() - FIXUI.lastAct) > 0.3 then
-        FIXUI.hovering = false
-        FIXUI.sawLeave = false
-        FIXUI.half = ''
-        fixedPaint()
-        SKIN:Bang('!Redraw')
-    end
+
     -- 进度条箭头跳动：悬停哪半，那个箭头向外弹一下
     if FIXUI.hovering and FIXUI.half ~= '' and fixedMaxScroll() > 0 then
         FIXUI.t = FIXUI.t + 0.033
