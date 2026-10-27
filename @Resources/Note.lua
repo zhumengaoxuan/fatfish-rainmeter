@@ -393,15 +393,14 @@ end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
 local layout
-local FIXUI = { scroll = 0, hovering = false, leaveAt = 0, half = '', t = 0, upY = 0, dnY = 0, upBase = 0, dnBase = 0 }
+local FIXUI = { scroll = 0, hovering = false, lastAct = 0, sawLeave = false, half = '', t = 0, upY = 0, dnY = 0, upBase = 0, dnBase = 0 }
 
 local function fixedMaxScroll()
     return math.max(0, fixedCount() - math.max(1, rows))
 end
 
 local function fixedPaint()
-    local recent = FIXUI.leaveAt > 0 and (os.clock() - FIXUI.leaveAt) < 0.6
-    if (not FIXUI.hovering and not recent) or favIsOpen() then
+    if not FIXUI.hovering or favIsOpen() then
         hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown')
         return
     end
@@ -445,7 +444,8 @@ function fixedScroll(delta)
     if favIsOpen() then return end
     -- 交互即取消待隐藏（相当于打断「抽屉回弹」）
     FIXUI.hovering = true
-    FIXUI.leaveAt = 0
+    FIXUI.lastAct = os.clock()
+    FIXUI.sawLeave = false
     delta = tonumber(delta) or 0
     FIXUI.scroll = clamp(FIXUI.scroll + delta, 0, fixedMaxScroll())
     layout()
@@ -454,7 +454,8 @@ end
 function fixedBarClick(mx, my)
     if favIsOpen() then return end
     FIXUI.hovering = true
-    FIXUI.leaveAt = 0
+    FIXUI.lastAct = os.clock()
+    FIXUI.sawLeave = false
     -- meter 动作里的 $MouseX$/$MouseY$ 是相对该 meter 的，先换算成皮肤坐标
     local hm = SKIN:GetMeter('FixedHover')
     mx = (tonumber(mx) or 0) + ((hm and hm:GetX()) or 0)
@@ -480,7 +481,8 @@ function fixedPage(dir)
     local step = math.max(1, rows)
     FIXUI.scroll = clamp(FIXUI.scroll + ((dir == 'down') and step or -step), 0, maxS)
     FIXUI.hovering = true
-    FIXUI.leaveAt = 0
+    FIXUI.lastAct = os.clock()
+    FIXUI.sawLeave = false
     layout()
 end
 
@@ -500,13 +502,15 @@ end
 function fixedEnter()
     if favIsOpen() then return end
     FIXUI.hovering = true
-    FIXUI.leaveAt = 0
+    FIXUI.lastAct = os.clock()
+    FIXUI.sawLeave = false
     fixedPaint()
     SKIN:Bang('!Redraw')
 end
 
 function fixedLeave()
     FIXUI.hovering = false
+    FIXUI.sawLeave = true
     FIXUI.leaveAt = os.clock()
     fixedPaint()
     SKIN:Bang('!Redraw')
@@ -852,10 +856,13 @@ autoReset = function()
 end
 
 function autoScrollTick()
-    -- 常驻区进度条的离开宽限期到了就收起来
-    if FIXUI.leaveAt > 0 and not FIXUI.hovering and (os.clock() - FIXUI.leaveAt) >= 0.6 then
-        FIXUI.leaveAt = 0
+    -- 常驻区进度条：不再依赖 leave 事件，改为「静默 0.3s 后隐藏」
+    if FIXUI.hovering and FIXUI.sawLeave and (os.clock() - FIXUI.lastAct) > 0.3 then
+        FIXUI.hovering = false
+        FIXUI.sawLeave = false
+        FIXUI.half = ''
         fixedPaint()
+        SKIN:Bang('!Redraw')
     end
     -- 进度条箭头跳动：悬停哪半，那个箭头向外弹一下
     if FIXUI.hovering and FIXUI.half ~= '' and fixedMaxScroll() > 0 then
