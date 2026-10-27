@@ -1,9 +1,9 @@
 #FatFishNote v3
-#grid cols=2 rows=10 scale=1.00
+#grid cols=2 rows=9 scale=0.99
 #theme 1
 #page 0
 #autoskip 2026-10-25
-2026-10-27	订货	确认下单数量	auto	1
+2026-10-25	订货	确认下单数量	auto	1
 2026-10-26	到货	核对到货清单	auto	1
 2026-10-27	订货	确认下单数量	auto	1
 2026-10-27	节气口径	霜降 10/23 交节，到立冬前都挂霜降；多天显示同名不是 bug，插件给的其实是「第N天」	user	1
