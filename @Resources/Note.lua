@@ -398,6 +398,14 @@ end
 
 local function colDate(c) return dateAdd(baseDate, c - 1) end
 
+
+-- 新建便签的合法落点：必须在列头下沿以下、看板底边以上
+local function boardYOk(y)
+    local _, _, _, header = metrics()
+    local h = tonumber(SKIN:GetVariable('SH')) or 0
+    return y >= header - rnd(2 * scale) and (h <= 0 or y <= h - rnd(2 * scale))
+end
+
 local function targetCell(x, y)
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
     local c = math.floor((x - margin) / (cardW + gapX)) + 1
@@ -1253,6 +1261,7 @@ function drag(x, y)
         setOpt('GhostName', 'X', ghostX + rnd(80 * scale)); setOpt('GhostName', 'Y', ghostY + rnd(20 * scale)); setOpt('GhostName', 'StringAlign', 'CenterCenter'); setOpt('GhostName', 'FontSize', rnd(9 * scale))
         setOpt('GhostText', 'X', ghostX + rnd(14 * scale)); setOpt('GhostText', 'Y', ghostY + rnd(40 * scale))
         local c, r, ok = targetCellSmart(x, y)
+        if not boardYOk(y) then ok = false; c, r = nil, nil end
         if ok and c and r then
             local _, cardW = metrics()
             setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
