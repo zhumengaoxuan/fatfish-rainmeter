@@ -436,7 +436,7 @@ local function fixedPaint()
     setOpt('FixedBarUp', 'FontSize', math.max(6, rnd(7 * scale)))
     setOpt('FixedBarDown', 'X', bx + bw / 2); setOpt('FixedBarDown', 'Y', dnY + aw / 2)
     setOpt('FixedBarDown', 'FontSize', math.max(6, rnd(7 * scale)))
-    FIXUI.upBase, FIXUI.dnBase, FIXUI.upY, FIXUI.dnY = upY, dnY, upY, dnY
+    FIXUI.upBase, FIXUI.dnBase = upY + aw / 2, dnY + aw / 2   -- 与 setOpt 时保持一致
     if FIXUI.scroll > 0 then show('FixedBarUp') else hide('FixedBarUp') end
     if FIXUI.scroll < maxS then show('FixedBarDown') else hide('FixedBarDown') end
 end
@@ -1027,13 +1027,15 @@ layout = function()
     setOpt('FixedDivider', 'Shape', 'Rectangle 0,0,1,' .. fh .. ',0 | Fill Color 176,158,255,50 | StrokeWidth 0')
     show('FixedDivider')
     -- 透明 hover 条：盖住卡片右侧到分隔线之间的空隙，让进度条所在区域仍然算「在常驻区里」
-    local hoverW = math.max(1, rnd(gapX))
+    -- 点击区：从卡片右缘开始，向右多留 10px（仍在分隔线左侧），并可按 #HITDBG# 显示出来
+    local hoverW = math.max(1, rnd(gapX) + rnd(16 * scale))
+    local dbgA = (tonumber(SKIN:GetVariable('HITDBG')) or 0) > 0 and 85 or 1
     local hh = math.floor(fh / 2)
     setOpt('FixedHoverTop', 'X', margin + cardW); setOpt('FixedHoverTop', 'Y', header)
-    setOpt('FixedHoverTop', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. hh .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
+    setOpt('FixedHoverTop', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. hh .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
     show('FixedHoverTop')
     setOpt('FixedHoverBottom', 'X', margin + cardW); setOpt('FixedHoverBottom', 'Y', header + hh)
-    setOpt('FixedHoverBottom', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. (fh - hh) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
+    setOpt('FixedHoverBottom', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. (fh - hh) .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
     show('FixedHoverBottom')
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
