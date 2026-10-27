@@ -2545,6 +2545,25 @@ function dragFav(x, y)
     end
     favZonePaint(true)
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
+    if fixedHit(x, y) then
+        -- 指向常驻区：预览框落在常驻区的下一个空位，而不是时间列
+        local margin, cardW, gapX, header = metrics()
+        local fr = math.min(rows, fixedCount() + 1)
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
+            .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
+        setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
+        show('DropHint')
+        setOpt('GhostCard', 'X', gx); setOpt('GhostCard', 'Y', gy)
+        setOpt('GhostName', 'X', gx + rnd(14 * scale)); setOpt('GhostName', 'Y', gy + rnd(8 * scale))
+        setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
+        SKIN:Bang('!UpdateMeter', 'GhostCard')
+        SKIN:Bang('!UpdateMeter', 'GhostName')
+        SKIN:Bang('!UpdateMeter', 'GhostText')
+        SKIN:Bang('!UpdateMeter', 'DropHint')
+        SKIN:Bang('!Redraw')
+        FAVUI.dropCol = nil
+        return
+    end
     local c, r, ok = targetCellSmart(ex, y)
     if ok and c and c >= 1 then
         -- 和拖便签一致：高亮目标格，而不是整列
