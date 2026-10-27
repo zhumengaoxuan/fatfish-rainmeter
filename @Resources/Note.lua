@@ -401,13 +401,13 @@ end
 
 local function fixedPaint()
     if not FIXUI.hovering or favIsOpen() then
-        hide('FixedBar'); hide('FixedBarThumb')
+        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedBarHit')
         return
     end
     local n = fixedCount()
     local maxS = fixedMaxScroll()
     if maxS <= 0 then
-        hide('FixedBar'); hide('FixedBarThumb')
+        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedBarHit')
         return
     end
     local margin, cardW, gapX, header, gapY = metrics()
@@ -425,12 +425,46 @@ local function fixedPaint()
     setOpt('FixedBarThumb', 'X', bx); setOpt('FixedBarThumb', 'Y', ty)
     setOpt('FixedBarThumb', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color 176,158,255,190 | StrokeWidth 0')
     show('FixedBarThumb')
+    FIXUI.thumbY, FIXUI.thumbH = ty, thumbH
+    -- 溢出提示：还能往上/往下滚时，轨道两端显示小三角
+    local aw = math.max(4, rnd(5 * scale))
+    local upY = header + rnd(1 * scale)
+    local dnY = header + fh - aw - rnd(1 * scale)
+    setOpt('FixedBarUp', 'X', bx + bw / 2); setOpt('FixedBarUp', 'Y', upY + aw / 2)
+    setOpt('FixedBarUp', 'FontSize', math.max(6, rnd(7 * scale)))
+    setOpt('FixedBarDown', 'X', bx + bw / 2); setOpt('FixedBarDown', 'Y', dnY + aw / 2)
+    setOpt('FixedBarDown', 'FontSize', math.max(6, rnd(7 * scale)))
+    -- 命中区：比轨道宽，方便点击翻页
+    local hw = math.max(10, rnd(12 * scale))
+    setOpt('FixedBarHit', 'X', bx + bw / 2 - hw / 2); setOpt('FixedBarHit', 'Y', header)
+    setOpt('FixedBarHit', 'Shape', 'Rectangle 0,0,' .. hw .. ',' .. fh .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
+    show('FixedBarHit')
+    if FIXUI.scroll > 0 then show('FixedBarUp') else hide('FixedBarUp') end
+    if FIXUI.scroll < maxS then show('FixedBarDown') else hide('FixedBarDown') end
 end
 
 function fixedScroll(delta)
     if favIsOpen() then return end
     delta = tonumber(delta) or 0
     FIXUI.scroll = clamp(FIXUI.scroll + delta, 0, fixedMaxScroll())
+    layout()
+end
+
+function fixedBarClick(mx, my)
+    if favIsOpen() then return end
+    my = tonumber(my) or 0
+    local maxS = fixedMaxScroll()
+    if maxS <= 0 then return end
+    local step = math.max(1, rows)
+    local ty = FIXUI.thumbY or 0
+    local th = FIXUI.thumbH or 0
+    if my < ty then
+        FIXUI.scroll = clamp(FIXUI.scroll - step, 0, maxS)
+    elseif my > ty + th then
+        FIXUI.scroll = clamp(FIXUI.scroll + step, 0, maxS)
+    else
+        return
+    end
     layout()
 end
 
