@@ -414,7 +414,8 @@ local function fixedPaint()
     local fw = fixedW() - gapX
     local fh = rows * cardH + (rows - 1) * gapY
     local bw = math.max(2, rnd(3 * scale))
-    local bx = margin + fw - bw - rnd(2 * scale)
+    -- 放在卡片与分隔线之间的空隙里，别压在卡片上
+    local bx = margin + cardW + rnd((gapX - bw) / 2)
     setOpt('FixedBar', 'X', bx); setOpt('FixedBar', 'Y', header)
     setOpt('FixedBar', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. fh .. ',' .. rnd(2 * scale) .. ' | Fill Color 255,255,255,28 | StrokeWidth 0')
     show('FixedBar')
