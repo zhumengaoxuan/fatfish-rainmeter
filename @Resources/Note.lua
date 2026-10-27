@@ -393,6 +393,8 @@ end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
 local layout
+local FAVP = { t = -1 }
+
 local FIXUI = { scroll = 0, hovering = false, lastAct = 0, sawLeave = false, half = '', t = 0, upY = 0, dnY = 0, upBase = 0, dnBase = 0 }
 
 local function fixedMaxScroll()
@@ -873,6 +875,27 @@ end
 
 function autoScrollTick()
 
+    -- 收藏星标涟漪
+    if FAVP.t >= 0 then
+        FAVP.t = FAVP.t + 0.064
+        if FAVP.t > 1.1 then
+            for i = 1, 2 do SKIN:Bang('!HideMeter', 'FavPulse' .. i) end
+            FAVP.t = -1
+        else
+            for i = 1, 2 do
+                local q = (FAVP.t + (i - 1) * 0.55) % 1.1 / 1.1
+                local rad = math.floor(4 + 16 * q)
+                local fade = (1 - q)
+                local m = 'FavPulse' .. i
+                SKIN:Bang('!SetOption', m, 'Shape',  'Ellipse 20,20,' .. math.max(2, rad-4) .. ',' .. math.max(2, rad-4) .. ' | StrokeWidth ' .. math.max(1, math.floor(7*fade)) .. ' | Stroke Color 176,158,255,' .. math.floor(130*fade) .. ' | Fill Color 0,0,0,0')
+                SKIN:Bang('!SetOption', m, 'Shape2', 'Ellipse 20,20,' .. rad .. ',' .. rad .. ' | StrokeWidth ' .. math.max(1, math.floor(3*fade)) .. ' | Stroke Color 218,208,255,' .. math.floor(255*fade) .. ' | Fill Color 0,0,0,0')
+                SKIN:Bang('!SetOption', m, 'Shape3', 'Ellipse 20,20,' .. (rad+4) .. ',' .. (rad+4) .. ' | StrokeWidth ' .. math.max(1, math.floor(7*fade)) .. ' | Stroke Color 176,158,255,' .. math.floor(130*fade) .. ' | Fill Color 0,0,0,0')
+            end
+            SKIN:Bang('!UpdateMeterGroup', 'FavWaves')
+            SKIN:Bang('!Redraw')
+        end
+    end
+
     -- 进度条悬停：两个箭头交替轻微跳动，提示可点
     if FIXUI.hovering then
         FIXUI.t = FIXUI.t + 0.033
@@ -1055,6 +1078,9 @@ layout = function()
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
     setOpt('FavBtn', 'X', rnd(w / 2 + 96 * scale)); setOpt('FavBtn', 'Y', rnd(24 * scale)); setOpt('FavBtn', 'FontSize', rnd(21 * scale))
+    setOpt('FavPulseMask', 'X', rnd(w / 2 + 96 * scale) - 20)
+    setOpt('FavPulseMask', 'Y', rnd(24 * scale) - 20)
+    show('FavPulseMask')
 
 
     setOpt('ClockText', 'X', w - rnd(28 * scale)); setOpt('ClockText', 'StringAlign', 'RightTop'); setOpt('ClockText', 'Y', rnd(3 * scale)); setOpt('ClockText', 'FontSize', rnd(26 * scale)); setOpt('ClockText', 'StringAlign', 'RightTop'); setOpt('ClockText', 'W', rnd(140 * scale))
@@ -3108,7 +3134,13 @@ function dropMouseR(x, y)
     if FAVUI and FAVUI.favCopy then dropFavCopy(x, y); return end
 end
 
+function favPulse()
+    FAVP.t = 0
+    for i = 1, 2 do SKIN:Bang('!ShowMeter', 'FavPulse' .. i) end
+end
+
 function favToggle()
+    favPulse()
     favOpen = not favOpen
     if favOpen then
         FAVUI.ui = 'fav'
