@@ -190,7 +190,7 @@ local function serialize()
     for d in pairs(autoskips) do body = body .. '#autoskip ' .. d .. '\r\n' end
     for i = 1, count do
         local n = notes[i]
-        body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. '\r\n'
+        body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. (n.pin and '\t1' or '') .. '\r\n'
     end
     return body
 end
@@ -208,7 +208,7 @@ local function prune()
     local cut = dateAdd(todayStr(), -4)
     local removed, kept = 0, {}
     for i = 1, #notes do
-        if notes[i].date and notes[i].date >= cut then
+        if notes[i].pin or (notes[i].date and notes[i].date >= cut) then
             kept[#kept + 1] = notes[i]
         else
             removed = removed + 1
@@ -268,9 +268,9 @@ local function parse(data)
             if pg then gpage = tonumber(pg) end
         elseif l ~= '' then
             if #list < MAXN then
-                local d, n, t, s, th = l:match('^(%d%d%d%d%-%d%d%-%d%d)\t([^\t]*)\t([^\t]*)\t?(%a*)\t?(%d*)$')
+                local d, n, t, s, th, pn = l:match('^(%d%d%d%d%-%d%d%-%d%d)\t([^\t]*)\t([^\t]*)\t?(%a*)\t?(%d*)\t?(%d*)$')
                 if d and n and t then
-                    list[#list + 1] = { date = d, name = n, text = t, src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user', theme = tonumber(th) or 1 }
+                    list[#list + 1] = { date = d, name = n, text = t, src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user', theme = tonumber(th) or 1, pin = (pn == '1') or nil }
                 else
                     local name, txt = l:match('^([^\t]*)\t(.*)$')
                     if version == 'v1' or not name then name, txt = nil, l end
@@ -377,8 +377,10 @@ local function buildColumns()
         -- 只裁尾部空行列；中间空列代表「该日无便签」，必须保留，否则日期错位
         local lastCol = 0
         for i = 1, count do
-            local dc = dateDiff(baseDate, notes[i].date or baseDate)
-            if dc + 1 > lastCol then lastCol = dc + 1 end
+            if not notes[i].pin then
+                local dc = dateDiff(baseDate, notes[i].date or baseDate)
+                if dc + 1 > lastCol then lastCol = dc + 1 end
+            end
         end
         cols = lastCol
         if cols < 2 then cols = 2 end
@@ -387,8 +389,11 @@ local function buildColumns()
     colLists = {}
     for c = 1, cols do colLists[c] = {} end
     for i = 1, count do
-        local dc = dateDiff(baseDate, notes[i].date or baseDate)
-        if dc >= 0 and dc < cols then table.insert(colLists[dc + 1], i) end
+        local n = notes[i]
+        if not n.pin then
+            local dc = dateDiff(baseDate, n.date or baseDate)
+            if dc >= 0 and dc < cols then table.insert(colLists[dc + 1], i) end
+        end
     end
     local mx = 1
     for c = 1, cols do if #colLists[c] > mx then mx = #colLists[c] end end
@@ -661,13 +666,18 @@ function noteScroll(m, delta)
 end
 
 
-local function updateCard(i, c, r)
+local function updateCard(i, c, r, fixed)
     i = tonumber(i)
     if not i or i < 1 or i > count then return end
     local margin, cardW, gapX, header = metrics()
     local m = i - 1
     cardNote[m] = i
-    local x, y = slotPos(r, c)
+    local x, y
+    if fixed then
+        x = margin; y = header + (r - 1) * pitch
+    else
+        x, y = slotPos(r, c)
+    end
     local nth = THEMES[clamp(tonumber(notes[i].theme) or 1, 1, 4)]
     cardShape(m, notes[i].src == 'ai', nth)
     setOpt('Card' .. m, 'X', x); setOpt('Card' .. m, 'Y', y)
@@ -739,9 +749,8 @@ local function layout()
         .. ' | Fill Color 40,44,64,120 | StrokeWidth ' .. math.max(1, rnd(1 * scale))
         .. ' | Stroke Color 176,158,255,60')
     show('FixedBg')
-    setOpt('FixedTitle', 'X', fx + fw / 2); setOpt('FixedTitle', 'Y', fy + rnd(10 * scale))
-    setOpt('FixedTitle', 'FontSize', rnd(9 * scale))
-    show('FixedTitle')
+    -- 固定区不加标题（会跟日期列的天气文字重叠），靠底板和分隔线区分即可
+    hide('FixedTitle')
     setOpt('FixedDivider', 'X', fx + fw + rnd(gapX / 2 - 1)); setOpt('FixedDivider', 'Y', fy)
     setOpt('FixedDivider', 'Shape', 'Rectangle 0,0,1,' .. fh .. ',0 | Fill Color 176,158,255,50 | StrokeWidth 0')
     show('FixedDivider')
@@ -899,6 +908,16 @@ local function layout()
     for cc = 1, cols do
         for rr, idx in ipairs(colLists[cc] or {}) do
             if idx == dragIdx and not pending then hideCard(idx) else updateCard(idx, cc, rr) end
+        end
+    end
+    -- 固定区：按文件顺序、每行一张
+    do
+        local fr = 0
+        for i = 1, count do
+            if notes[i].pin then
+                fr = fr + 1
+                if fr <= rows then updateCard(i, 1, fr, true) else hideCard(i) end
+            end
         end
     end
     if count == 0 then
