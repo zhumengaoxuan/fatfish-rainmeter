@@ -464,6 +464,7 @@ local function targetCell(x, y)
 end
 
 local hintFixed = false
+local newFixed = false
 
 local hoverIdx = -1
 
@@ -572,6 +573,8 @@ function swatchHover()
     SKIN:Bang('!CommandMeasure', 'SwTimer', 'Stop 1')
 end
 
+local autoReset
+
 function leaveCard(mx, my)
     autoReset()
     if boardLocked() then return end
@@ -678,7 +681,7 @@ local function probeTextH(note, w)
     return pm and pm:GetH() or 0
 end
 
-local function autoReset()
+autoReset = function()
     if AUTO.m >= 0 and AUTO.seg then
         local m = AUTO.m
         local i = cardNote[m]
@@ -1392,6 +1395,21 @@ function drag(x, y)
         setOpt('GhostCard', 'X', ghostX); setOpt('GhostCard', 'Y', ghostY)
         setOpt('GhostName', 'X', ghostX + rnd(80 * scale)); setOpt('GhostName', 'Y', ghostY + rnd(20 * scale)); setOpt('GhostName', 'StringAlign', 'CenterCenter'); setOpt('GhostName', 'FontSize', rnd(9 * scale))
         setOpt('GhostText', 'X', ghostX + rnd(14 * scale)); setOpt('GhostText', 'Y', ghostY + rnd(40 * scale))
+        if fixedHit(x, y) then
+            newFixed = true
+            hintValid = true
+            dragCol, dragRow = nil, nil
+            local margin, cardW, gapX, header = metrics()
+            local fr = math.min(rows, fixedCount() + 1)
+            setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
+                .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
+            setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
+            show('DropHint')
+            SKIN:Bang('!UpdateMeter', 'DropHint')
+            SKIN:Bang('!Redraw')
+            return
+        end
+        newFixed = false
         local c, r, ok = targetCellSmart(x, y)
         if not boardYOk(y) then ok = false; c, r = nil, nil end
         if ok and c and r then
@@ -1523,6 +1541,16 @@ function drop(mx, my)
         NEW_DRAG = false
         hide('DropHint')
         hideGhost()
+        if newFixed then
+            newFixed = false
+            hintValid = false
+            pending = false
+            dragCol, dragRow = nil, nil
+            notes[#notes + 1] = { date = todayStr(), name = defaultName(), text = '新便签', src = 'user', pin = true }
+            count = #notes
+            writeAll(); layout()
+            return
+        end
         local c, r, ok = dragCol, dragRow, hintValid
         hintValid = false
         pending = false
@@ -2783,6 +2811,10 @@ function dropFavCopy(x, y)
         return
     end
 
+    if x and y and fixedHit(x, y) then
+        favRestore(idx, todayStr(), nil, true)
+        return
+    end
     local c, r, ok = targetCellSmart(x or 0, y or 0)
     if ok and c and c >= 1 then
         local list = favLoad()
@@ -2961,13 +2993,13 @@ function favDelete(idx)
     favRender()
 end
 
-function favRestore(idx, date, row)
+function favRestore(idx, date, row, pin)
     idx = tonumber(idx)
     local list = favLoad()
     if not idx or not list[idx] then return end
     local it = table.remove(list, idx)
     date = date or todayStr()
-    local note = { date = date, name = it.name, text = it.text, src = 'user', theme = it.theme or 1 }
+    local note = { date = date, name = it.name, text = it.text, src = 'user', theme = it.theme or 1, pin = pin or nil }
     -- 指定了目标格就用 insertAt，和拖卡片落点一致
     if row then
         insertAt(date, tonumber(row) or 1, note)
