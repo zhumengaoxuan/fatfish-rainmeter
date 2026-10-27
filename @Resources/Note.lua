@@ -785,12 +785,18 @@ local function layout()
     setOpt('DateText', 'X', w - rnd(28 * scale)); setOpt('DateText', 'Y', rnd(50 * scale)); setOpt('DateText', 'FontSize', rnd(9 * scale)); setOpt('DateText', 'StringAlign', 'RightTop'); setOpt('DateText', 'W', rnd(140 * scale))
     setOpt('AddBtn', 'X', w - rnd(61 * scale)); setOpt('AddBtn', 'Y', rnd(15 * scale)); hide('AddBtn'); hide('AddText')
     setOpt('AddText', 'X', w - rnd(44 * scale)); setOpt('AddText', 'Y', rnd(31 * scale)); setOpt('AddText', 'FontSize', rnd(15 * scale))
-    setOpt('PrevBtn', 'X', margin + fixedW() - rnd(24 * scale)); setOpt('PrevBtn', 'Y', rnd(116 * scale)); setOpt('PrevBtn', 'FontSize', rnd(14 * scale))
-    setOpt('NextBtn', 'X', w - rnd(42 * scale)); setOpt('NextBtn', 'Y', rnd(116 * scale)); setOpt('NextBtn', 'FontSize', rnd(14 * scale))
+    -- 翻页箭头对称夹住时间列：左箭头贴时间列左缘，右箭头贴右缘，不再顶到窗口边
+    local tRight = margin + fixedW() + cols * cardW + (cols - 1) * gapX
+    local prevX = margin + fixedW() - rnd(18 * scale)
+    local nextX = tRight + rnd(18 * scale)
+    local maxX = w - rnd(16 * scale)
+    if nextX > maxX then nextX = maxX end
+    setOpt('PrevBtn', 'X', prevX); setOpt('PrevBtn', 'Y', rnd(116 * scale)); setOpt('PrevBtn', 'FontSize', rnd(14 * scale))
+    setOpt('NextBtn', 'X', nextX); setOpt('NextBtn', 'Y', rnd(116 * scale)); setOpt('NextBtn', 'FontSize', rnd(14 * scale))
     setOpt('PrevBtn', 'FontColor', page < PAGE_MAX and '235,238,245,230' or '235,238,245,102')
     setOpt('NextBtn', 'FontColor', page > 0 and '235,238,245,230' or '235,238,245,102')
-    setOpt('PrevHit', 'X', margin + fixedW() - rnd(38 * scale)); setOpt('PrevHit', 'Y', rnd(104 * scale))
-    setOpt('NextHit', 'X', w - rnd(52 * scale)); setOpt('NextHit', 'Y', rnd(104 * scale))
+    setOpt('PrevHit', 'X', prevX - rnd(12 * scale)); setOpt('PrevHit', 'Y', rnd(104 * scale))
+    setOpt('NextHit', 'X', nextX - rnd(12 * scale)); setOpt('NextHit', 'Y', rnd(104 * scale))
     setOpt('PrevHit', 'Shape', 'Rectangle 0,0,' .. rnd(24 * scale) .. ',' .. rnd(24 * scale) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
     setOpt('NextHit', 'Shape', 'Rectangle 0,0,' .. rnd(24 * scale) .. ',' .. rnd(24 * scale) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
     show('PrevHit'); show('NextHit')
@@ -1195,6 +1201,7 @@ function beginNewDrag(mname, mx, my)
     dragIdx = -1
 end
 function beginDrag(i, mname, mx, my)
+    hintFixed = false
     if boardLocked() then return end
     -- 防御：上一次收藏拖出没走完就关了面板，这里先清干净
     if FAVUI and FAVUI.drag then
@@ -1398,6 +1405,8 @@ function drag(x, y)
 end
 
 function drop(mx, my)
+    local hadFixed = hintFixed
+    hintFixed = false
     if FAVUI and FAVUI.barDrag then
         favBarEnd()
         return
@@ -1478,7 +1487,7 @@ function drop(mx, my)
     local snap = {}
     for i = 1, count do snap[i] = { note = notes[i], date = notes[i].date } end
     hide('DropHint')
-    if wasDragging and hintFixed then
+    if wasDragging and hadFixed then
         notes[from].pin = true
         sel = from
         hintFixed = false
