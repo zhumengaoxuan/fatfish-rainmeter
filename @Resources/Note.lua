@@ -393,6 +393,8 @@ end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
 local layout
+local PULSE = { up = -1, down = -1 }
+
 local FIXUI = { scroll = 0, hovering = false, lastAct = 0, sawLeave = false, half = '', t = 0, upY = 0, dnY = 0, upBase = 0, dnBase = 0 }
 
 local function fixedMaxScroll()
@@ -436,6 +438,11 @@ local function fixedPaint()
     setOpt('FixedBarDown', 'X', bx + bw / 2); setOpt('FixedBarDown', 'Y', dnY + aw / 2)
     setOpt('FixedBarDown', 'FontSize', math.max(6, rnd(7 * scale)))
     FIXUI.upBase, FIXUI.dnBase = upY + aw / 2, dnY + aw / 2   -- 与 setOpt 时保持一致
+    -- 点阵脉冲的两组发射器定位到箭头处（容器动，子 meter 坐标相对容器）
+    local pux, puy = bx - 20 + bw / 2, FIXUI.upBase - 20
+    setOpt('PulseMaskUp', 'X', pux); setOpt('PulseMaskUp', 'Y', puy)
+    local pdx, pdy = bx - 20 + bw / 2, FIXUI.dnBase - 20
+    setOpt('PulseMaskDown', 'X', pdx); setOpt('PulseMaskDown', 'Y', pdy)
     if FIXUI.scroll > 0 then show('FixedBarUp') else hide('FixedBarUp') end
     if FIXUI.scroll < maxS then show('FixedBarDown') else hide('FixedBarDown') end
 end
@@ -474,6 +481,49 @@ function fixedBarClick(mx, my)
     layout()
 end
 
+local function triPath(cx, cy, r, apex)
+    local p = {}
+    for k = 0, 2 do
+        local a = math.rad(apex + k * 120)
+        p[#p + 1] = math.floor(cx + math.cos(a) * r) .. ',' .. math.floor(cy + math.sin(a) * r)
+    end
+    return p[1] .. ' | LineTo ' .. p[2] .. ' | LineTo ' .. p[3] .. ' | ClosePath 1'
+end
+
+function pulseTrigger(dir)
+    local tag = (dir == 'up') and 'Up' or 'Down'
+    PULSE[dir] = 0
+    for k = 1, 3 do
+        local m = 'Pulse' .. tag .. k
+        SKIN:Bang('!SetOption', m, 'T' .. tag .. k, triPath(20, 20, 4, (dir == 'up') and -90 or 90))
+        SKIN:Bang('!ShowMeter', m)
+    end
+end
+
+local function pulseTick()
+    for _, dir in ipairs({ 'up', 'down' }) do
+        if PULSE[dir] >= 0 then
+            PULSE[dir] = PULSE[dir] + 0.064
+            local tag = (dir == 'up') and 'Up' or 'Down'
+            local apex = (dir == 'up') and -90 or 90
+            if PULSE[dir] > 1.2 then
+                for k = 1, 3 do SKIN:Bang('!HideMeter', 'Pulse' .. tag .. k) end
+                PULSE[dir] = -1
+            else
+                for k = 1, 3 do
+                    local p = (PULSE[dir] + (k - 1) * 0.4) % 1.2 / 1.2
+                    local rad = 3 + 26 * p
+                    local a = math.floor(255 * (1 - p) ^ 0.9)
+                    local m = 'Pulse' .. tag .. k
+                    SKIN:Bang('!SetOption', m, 'T' .. tag .. k, triPath(20, 20, rad, apex))
+                    SKIN:Bang('!SetOption', m, 'Shape', 'Path T' .. tag .. k .. ' | StrokeWidth 0 | Fill Color 200,186,255,' .. a)
+                    SKIN:Bang('!UpdateMeter', m)
+                end
+            end
+        end
+    end
+end
+
 function fixedClick(my)
     if favIsOpen() then return end
     my = tonumber(my) or 0
@@ -483,6 +533,7 @@ function fixedClick(my)
     local h = (hm and hm:GetH()) or 0
     local step = math.max(1, rows)
     local delta = (my < h / 2) and -step or step
+    pulseTrigger((delta < 0) and 'up' or 'down')
     FIXUI.scroll = clamp(FIXUI.scroll + delta, 0, maxS)
     FIXUI.hovering = true
     FIXUI.lastAct = os.clock()
@@ -889,6 +940,7 @@ function autoScrollTick()
         setOpt('FixedBarUp', 'Y', FIXUI.upBase)
         setOpt('FixedBarDown', 'Y', FIXUI.dnBase)
     end
+    pulseTick()
     if dragIdx and dragIdx >= 1 then return end
     if NEW_DRAG then return end
     local m = hoverIdx
