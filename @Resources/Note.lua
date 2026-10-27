@@ -491,6 +491,12 @@ function fixedHalf(h)
     fixedEnter()
 end
 
+function fixedHalfLeave()
+    FIXUI.half = ''
+    FIXUI.t = 0
+    fixedLeave()
+end
+
 function fixedEnter()
     if favIsOpen() then return end
     FIXUI.hovering = true
