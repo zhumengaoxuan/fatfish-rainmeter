@@ -402,13 +402,13 @@ end
 local function fixedPaint()
     local recent = FIXUI.leaveAt > 0 and (os.clock() - FIXUI.leaveAt) < 0.35
     if (not FIXUI.hovering and not recent) or favIsOpen() then
-        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedBarHit')
+        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown')
         return
     end
     local n = fixedCount()
     local maxS = fixedMaxScroll()
     if maxS <= 0 then
-        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedBarHit')
+        hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown')
         return
     end
     local margin, cardW, gapX, header, gapY = metrics()
@@ -436,11 +436,6 @@ local function fixedPaint()
     setOpt('FixedBarUp', 'FontSize', math.max(6, rnd(7 * scale)))
     setOpt('FixedBarDown', 'X', bx + bw / 2); setOpt('FixedBarDown', 'Y', dnY + aw / 2)
     setOpt('FixedBarDown', 'FontSize', math.max(6, rnd(7 * scale)))
-    -- 命中区：比轨道宽，方便点击翻页
-    local hw = math.max(10, rnd(12 * scale))
-    setOpt('FixedBarHit', 'X', bx + bw / 2 - hw / 2); setOpt('FixedBarHit', 'Y', header)
-    setOpt('FixedBarHit', 'Shape', 'Rectangle 0,0,' .. hw .. ',' .. fh .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
-    show('FixedBarHit')
     if FIXUI.scroll > 0 then show('FixedBarUp') else hide('FixedBarUp') end
     if FIXUI.scroll < maxS then show('FixedBarDown') else hide('FixedBarDown') end
 end
@@ -454,7 +449,10 @@ end
 
 function fixedBarClick(mx, my)
     if favIsOpen() then return end
-    my = tonumber(my) or 0
+    -- meter 动作里的 $MouseX$/$MouseY$ 是相对该 meter 的，先换算成皮肤坐标
+    local hm = SKIN:GetMeter('FixedHover')
+    mx = (tonumber(mx) or 0) + ((hm and hm:GetX()) or 0)
+    my = (tonumber(my) or 0) + ((hm and hm:GetY()) or 0)
     local maxS = fixedMaxScroll()
     if maxS <= 0 then return end
     local step = math.max(1, rows)   -- 一页 = 当前最高列能放下的张数
