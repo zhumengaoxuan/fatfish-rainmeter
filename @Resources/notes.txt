@@ -1,5 +1,5 @@
 #FatFishNote v3
-#grid cols=3 rows=3 scale=1.00
+#grid cols=2 rows=3 scale=1.00
 #theme 1
 #page 0
 2026-10-27	订货	确认下单数量	auto	1

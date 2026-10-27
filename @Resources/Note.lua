@@ -393,14 +393,15 @@ end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
 local layout
-local FIXUI = { scroll = 0, hovering = false }
+local FIXUI = { scroll = 0, hovering = false, leaveAt = 0 }
 
 local function fixedMaxScroll()
     return math.max(0, fixedCount() - math.max(1, rows))
 end
 
 local function fixedPaint()
-    if not FIXUI.hovering or favIsOpen() then
+    local recent = FIXUI.leaveAt > 0 and (os.clock() - FIXUI.leaveAt) < 0.35
+    if (not FIXUI.hovering and not recent) or favIsOpen() then
         hide('FixedBar'); hide('FixedBarThumb'); hide('FixedBarUp'); hide('FixedBarDown'); hide('FixedBarHit')
         return
     end
@@ -426,6 +427,7 @@ local function fixedPaint()
     setOpt('FixedBarThumb', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color 176,158,255,190 | StrokeWidth 0')
     show('FixedBarThumb')
     FIXUI.thumbY, FIXUI.thumbH = ty, thumbH
+    FIXUI.trackY, FIXUI.trackH = header, fh
     -- 溢出提示：还能往上/往下滚时，轨道两端显示小三角
     local aw = math.max(4, rnd(5 * scale))
     local upY = header + rnd(1 * scale)
@@ -455,15 +457,14 @@ function fixedBarClick(mx, my)
     my = tonumber(my) or 0
     local maxS = fixedMaxScroll()
     if maxS <= 0 then return end
-    local step = math.max(1, rows)
-    local ty = FIXUI.thumbY or 0
-    local th = FIXUI.thumbH or 0
-    if my < ty then
+    local step = math.max(1, rows)   -- 一页 = 当前最高列能放下的张数
+    local ty = FIXUI.trackY or 0
+    local th = FIXUI.trackH or 0
+    local mid = ty + th / 2
+    if my < mid then
         FIXUI.scroll = clamp(FIXUI.scroll - step, 0, maxS)
-    elseif my > ty + th then
-        FIXUI.scroll = clamp(FIXUI.scroll + step, 0, maxS)
     else
-        return
+        FIXUI.scroll = clamp(FIXUI.scroll + step, 0, maxS)
     end
     layout()
 end
@@ -471,12 +472,14 @@ end
 function fixedEnter()
     if favIsOpen() then return end
     FIXUI.hovering = true
+    FIXUI.leaveAt = 0
     fixedPaint()
     SKIN:Bang('!Redraw')
 end
 
 function fixedLeave()
     FIXUI.hovering = false
+    FIXUI.leaveAt = os.clock()
     fixedPaint()
     SKIN:Bang('!Redraw')
 end
@@ -821,6 +824,11 @@ autoReset = function()
 end
 
 function autoScrollTick()
+    -- 常驻区进度条的离开宽限期到了就收起来
+    if FIXUI.leaveAt > 0 and not FIXUI.hovering and (os.clock() - FIXUI.leaveAt) >= 0.35 then
+        FIXUI.leaveAt = 0
+        fixedPaint()
+    end
     if dragIdx and dragIdx >= 1 then return end
     if NEW_DRAG then return end
     local m = hoverIdx
