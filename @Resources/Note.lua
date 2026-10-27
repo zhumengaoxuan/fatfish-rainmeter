@@ -917,8 +917,8 @@ layout = function()
     local h = header + rows * cardH + (rows - 1) * gapY + bottom
     SKIN:Bang('!SetVariable', 'SH', h)
     SKIN:Bang('!SetVariable', 'SW', w)
-    SKIN:Bang('!SetVariable', 'rows', rows)
-    SKIN:Bang('!SetVariable', 'cols', cols)
+    SKIN:Bang('!SetVariable', 'ROWS', rows)
+    SKIN:Bang('!SetVariable', 'COLS', cols)
     applyTheme()
     -- 固定区骨架（第一步只画区域，不接数据）
     local fx, fy = margin, header
