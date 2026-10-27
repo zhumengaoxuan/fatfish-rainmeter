@@ -1510,7 +1510,9 @@ function drag(x, y)
         hintValid = false
     end
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
-    local gx = clamp(x - grabDX, 4, margin * 2 + cols * cardW + (cols - 1) * gapX - cardW - 4)
+    -- 拖拽预览的横向范围要覆盖「常驻区 + 时间列」整块，否则会被卡在中途
+    local boardW = margin * 2 + fixedW() + cols * cardW + (cols - 1) * gapX
+    local gx = clamp(x - grabDX, 4, boardW - cardW - 4)
     local gy = clamp(y - grabDY, 4, header + rows * pitch - gapY - 4)
     if gx ~= ghostX or gy ~= ghostY then
         ghostX, ghostY = gx, gy
