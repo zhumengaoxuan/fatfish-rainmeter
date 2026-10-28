@@ -1522,7 +1522,7 @@ function copy(i)
     if not canEdit() then return end
     if i < 1 or i > count or count >= MAXN then return end
     count = count + 1
-    table.insert(notes, i + 1, { date = notes[i].date, name = defaultName(), text = notes[i].text, src = notes[i].src })
+    table.insert(notes, i + 1, { date = notes[i].date, name = defaultName(), text = notes[i].text, src = notes[i].src, theme = notes[i].theme, img = notes[i].img })
     sel = i + 1
     writeAll(); layout()
 end
@@ -2875,9 +2875,13 @@ local function favRead()
     local list = {}
     for line in tostring(data):gmatch('[^\r\n]+') do
         if not line:match('^#') then
-            local nm, tx, th, at = line:match('^([^\t]*)\t([^\t]*)\t(%d)\t?(.*)$')
+            local nm, tx, th, rest = line:match('^([^\t]*)\t([^\t]*)\t(%d)\t?(.*)$')
             if nm and nm ~= '' then
-                list[#list + 1] = { name = nm, text = tx, theme = tonumber(th) or 1, at = at }
+                local im, at
+                local a, b = rest:match('^([^\t]*)\t(.*)$')
+                if a then im, at = a, b else im, at = nil, rest end
+                list[#list + 1] = { name = nm, text = tx, theme = tonumber(th) or 1,
+                    img = (im ~= nil and im ~= '' and im) or nil, at = at }
             end
         end
     end
@@ -2888,7 +2892,7 @@ local function favWrite(list)
     local f = favFile()
     local out = { '#FatFishNote favorites v1' }
     for _, v in ipairs(list) do
-        out[#out + 1] = v.name .. '\t' .. v.text .. '\t' .. tostring(v.theme or 1) .. '\t' .. (v.at or '')
+        out[#out + 1] = v.name .. '\t' .. v.text .. '\t' .. tostring(v.theme or 1) .. '\t' .. (v.img or '') .. '\t' .. (v.at or '')
     end
     if f then
         local fd = io.open(f, 'wb')
@@ -3691,7 +3695,7 @@ function favAdd(i)
         return false
     end
     local n = notes[i]
-    list[#list + 1] = { name = n.name, text = n.text, theme = n.theme or 1, at = todayStr() }
+    list[#list + 1] = { name = n.name, text = n.text, theme = n.theme or 1, img = n.img, at = todayStr() }
     favWrite(list)
     table.remove(notes, i)
     count = #notes
@@ -3727,7 +3731,8 @@ function favRestore(idx, date, row, pin, pinSlot)
     if not idx or not list[idx] then return end
     local it = table.remove(list, idx)
     date = date or todayStr()
-    local note = { date = date, name = it.name, text = it.text, src = 'user', theme = it.theme or 1, pin = pin or nil }
+    local note = { date = date, name = it.name, text = it.text, src = 'user',
+        theme = it.theme or 1, img = it.img, pin = pin or nil }
     if pin then
         insertPinnedAt(pinSlot or 1, note)
     -- 指定了目标格就用 insertAt，和拖卡片落点一致
