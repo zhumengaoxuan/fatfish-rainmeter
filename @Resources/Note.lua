@@ -1895,6 +1895,8 @@ local function openBox(x, y, w, h, text)
     SKIN:Bang('!CommandMeasure', 'FocusTimer', 'Execute 1')
 end
 -- 便签在屏幕上的左上角：固定便签用常驻区槽位，其它用时间列格位
+local locate
+
 cardXY = function(i)
     local n = notes[i]
     if not n then return nil end
@@ -1915,7 +1917,7 @@ cardXY = function(i)
     return slotPos(r, c)
 end
 
-local function locate(i)
+locate = function(i)
     for cc = 1, cols do
         for rr, idx in ipairs(colLists[cc] or {}) do
             if idx == i then return cc, rr end
