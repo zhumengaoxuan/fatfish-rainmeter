@@ -4,3 +4,9 @@
 *.rmskin
 Thumbs.db
 desktop.ini
+ui_state.txt
+imgpick_result.txt
+@Resources/img/list.txt
+@Resources/img/scan.log
+@Resources/anime.txt
+@Resources/anime.log

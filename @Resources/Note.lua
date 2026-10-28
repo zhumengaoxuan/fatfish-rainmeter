@@ -2038,6 +2038,49 @@ function imgScan()
     SKIN:Bang('!Log', '开始扫描贴图目录', 'Notice')
 end
 
+-- ===== 贴图选择面板（跨配置）=====
+function uiStatePath() return resDir() .. 'ui_state.txt' end
+function pickResultPath() return resDir() .. 'imgpick_result.txt' end
+
+function pickImgStart(i)
+    i = tonumber(i)
+    if not i or not notes[i] then return end
+    local mx, my = 0, 0
+    local card = SKIN:GetMeter('Card' .. (i - 1))
+    if card then
+        mx = (card:GetX() or 0) + rnd(240 * scale) + rnd(12 * scale)
+        my = (card:GetY() or 0)
+    end
+    local sw = tonumber(SKIN:GetVariable('screenW')) or 1920
+    local sh = tonumber(SKIN:GetVariable('screenH')) or 1080
+    if mx + 290 > sw then mx = math.max(0, (card and card:GetX() or 0) - 292) end
+    if my + 140 > sh then my = math.max(0, sh - 150) end
+
+    local f = io.open(uiStatePath(), 'wb')
+    if f then
+        f:write('#imgpick ' .. i .. '\r\n#name ' .. clean(notes[i].name)
+            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n')
+        f:close()
+    end
+
+    SKIN:Bang('!ActivateConfig', 'FatFishNote\\imgpicker', 'imgpicker.ini')
+    SKIN:Bang('!Log', '打开贴图选择：' .. i .. ' ' .. clean(notes[i].name), 'Notice')
+end
+
+function imgPickTick()
+    local f = io.open(pickResultPath(), 'rb')
+    if not f then return end
+    local d = f:read('*a'); f:close()
+    os.remove(pickResultPath())
+    local i, name = tostring(d or ''):match('^(%d+)\t([^\r\n]*)')
+    i = tonumber(i)
+    if not i or not notes[i] then return end
+    notes[i].img = (name ~= '' and name ~= '-' and name) or nil
+    writeAll()
+    layout()
+    SKIN:Bang('!Log', '贴图已设置：' .. i .. ' -> ' .. tostring(name), 'Notice')
+end
+
 function cycleImg()
     local idx = (hoverIdx and hoverIdx >= 0) and (hoverIdx + 1) or sel
     if not idx or idx < 1 or not notes[idx] then
@@ -3384,8 +3427,9 @@ function dropCopy(x, y)
     hide('DropHint')
     hideGhost()
     if not moved then
-        -- 右键单击（没拖动）：不做事，避免误开配置页
+        -- 右键单击（没拖动）：打开贴图/配色选择面板
         hideGhost()
+        pickImgStart(i)
         return
     end
     local src = notes[i]
@@ -3393,7 +3437,7 @@ function dropCopy(x, y)
     c, r, ok = targetCellSmart(x, y)
     if ok and c and c >= 1 then
         local d = colDate(c)
-        insertAt(d, math.max(1, r or 1), { date = d, name = src.name, text = src.text, src = 'user', theme = src.theme })
+        insertAt(d, math.max(1, r or 1), { date = d, name = src.name, text = src.text, src = 'user', theme = src.theme, img = src.img })
         writeAll()
         layout()
         autoGen()
