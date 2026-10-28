@@ -2174,6 +2174,10 @@ function drop(mx, my)
     if not (dragIdx and dragIdx >= 1) then setOpt('NewZoneText', 'Text', '拖出新便签') end
     -- 点在卡片标题条右侧的四个色点上：切换配色，不进拖拽逻辑
     mx, my = tonumber(mx), tonumber(my)
+    -- $ 是米特相对坐标；拖拽落点必须用屏幕坐标，否则常驻区/收藏区判定会错位
+    if dragIdx and dragIdx >= 1 and lastDragX and lastDragY then
+        mx, my = lastDragX, lastDragY
+    end
     -- 拖到「拖出新便签」框 = 收进收藏库
     local cx, cy = mx, my
     if (not cx or not cy) then cx, cy = lastDragX, lastDragY end
