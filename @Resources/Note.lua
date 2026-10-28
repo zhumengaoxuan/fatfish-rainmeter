@@ -1824,6 +1824,46 @@ function animeImport()
     writeAll(); layout()
 end
 
+-- ===== 热键快记 =====
+local QUICK = { target = 'today' }
+
+function quickOpen(where)
+    if not BOOTED then return end
+    QUICK.target = (where == 'pin') and 'pin' or 'today'
+    local margin, cardW, gapX, header = metrics()
+    local w = cardW - rnd(10 * scale)
+    setOpt('QuickBox', 'W', w)
+    setOpt('QuickBox', 'X', margin)
+    setOpt('QuickBox', 'Y', header)
+    setOpt('QuickBox', 'Text', '')
+    SKIN:Bang('!UpdateMeter', 'QuickBox')
+    show('QuickBox')
+    SKIN:Bang('!Redraw')
+    SKIN:Bang('!CommandMeasure', 'QuickFocus', 'Execute 1')
+end
+
+function quickDismiss()
+    hide('QuickBox')
+    SKIN:Bang('!Redraw')
+end
+
+function quickSubmit(txt)
+    txt = clean(tostring(txt or ''))
+    hide('QuickBox')
+    if txt == '' then SKIN:Bang('!Redraw'); return end
+    local today = todayStr()
+    if QUICK.target == 'pin' then
+        -- 插到常驻区最前面
+        table.insert(notes, 1, { date = today, name = '快记', text = txt, src = 'user', theme = theme, pin = true })
+    else
+        notes[#notes + 1] = { date = today, name = '快记', text = txt, src = 'user', theme = theme }
+    end
+    count = #notes
+    writeAll()
+    layout()
+    SKIN:Bang('!Redraw')
+end
+
 function animeTick()
     if not BOOTED then return end
     if not animeEnabled() then return end
