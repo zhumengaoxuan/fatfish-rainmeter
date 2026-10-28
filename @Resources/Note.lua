@@ -842,6 +842,7 @@ function cycleTheme(i)
     if not i or not notes[i] then return end
     local cur = clamp(tonumber(notes[i].theme) or 1, 1, 4)
     notes[i].theme = (cur % 4) + 1
+    resetScrollFor(i)
     if notes[i].src == 'auto' then notes[i].locked = true end
     writeAll()
     SKIN:Bang('!CommandMeasure', 'NoteLua', 'relayoutWeather()')
@@ -2078,6 +2079,18 @@ function pickImgStart(i)
     SKIN:Bang('!Log', '打开贴图选择：' .. i .. ' ' .. clean(notes[i].name), 'Notice')
 end
 
+-- 面板改动后清掉该卡的滚动状态，避免正文被滚出蒙版
+function resetScrollFor(i)
+    i = tonumber(i)
+    if not i or not notes[i] then return end
+    SCROLL[notes[i]] = nil
+    if AUTO and AUTO.m == (i - 1) then
+        AUTO.m = -1
+        AUTO.seg = false
+        AUTO.off = 0
+    end
+end
+
 function imgPickTick()
     local f = io.open(pickResultPath(), 'rb')
     if not f then return end
@@ -2100,6 +2113,7 @@ function imgPickTick()
         local imgv = val:match('^img:(.+)$') or val
         notes[i].img = (imgv ~= '' and imgv ~= '-' and imgv) or nil
     end
+    resetScrollFor(i)
     writeAll()
     layout()
     SKIN:Bang('!Log', '面板已设置：' .. i .. ' -> ' .. tostring(val), 'Notice')
