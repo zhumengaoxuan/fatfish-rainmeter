@@ -1065,7 +1065,7 @@ local function updateCard(i, c, r, fixed)
     -- 有插图时给正文加描边，保证压在图上也读得清
     if notes[i].img and not (clean(notes[i].text or '') == '' or clean(notes[i].text or '') == '(空)' or clean(notes[i].text or '') == '新便签') then
         setOpt('Text' .. m, 'StringEffect', 'Border')
-        setOpt('Text' .. m, 'FontEffectColor', '12,10,24,190')
+        setOpt('Text' .. m, 'FontEffectColor', '0,0,0,255')
     else
         setOpt('Text' .. m, 'StringEffect', 'None')
     end
