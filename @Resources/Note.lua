@@ -1104,6 +1104,7 @@ local function updateCard(i, c, r, fixed)
             setOpt('Img' .. m, 'H', bb)
             setOpt('Img' .. m, 'X', cardW - rnd(86 * scale) - 1)
             setOpt('Img' .. m, 'Y', cardH - rnd(90 * scale) - (hh + 1))
+            setOpt('Img' .. m, 'Container', 'CardClip' .. m)
             setOpt('Img' .. m, 'ImageAlpha', 135)
         end
         SKIN:Bang('!UpdateMeter', 'Img' .. m)
@@ -1118,6 +1119,8 @@ local function updateCard(i, c, r, fixed)
     local hasBody = not (bodyT == '' or bodyT == '(空)' or bodyT == '新便签')
     local imgPad = (notes[i].img and hasBody) and rnd(78 * scale) or 0
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale) - imgPad))
+    -- 容器原点变了之后，X/Y 必须在断言 Container 之后再算一次，否则会沿用旧原点
+    setOpt('Text' .. m, 'Container', 'CardClip' .. m)
     setOpt('Name' .. m, 'Text', notes[i].name)
     setOpt('Head' .. m, 'LeftMouseUpAction', '[!CommandMeasure NoteLua "cycleTheme(' .. i .. ')"]')
     setOpt('Head' .. m, 'ToolTipText', '点标题换配色')
