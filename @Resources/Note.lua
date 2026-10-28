@@ -1827,29 +1827,44 @@ end
 -- ===== 热键快记 =====
 local QUICK = { target = 'today' }
 
+local QUICK_Z_SAVED = -2
+
+local function quickClose()
+    hide('QuickBox')
+    hide('QuickHint')
+    SKIN:Bang('!ZPos', tostring(QUICK_Z_SAVED))
+    SKIN:Bang('!Redraw')
+end
+
 function quickOpen(where)
     if not BOOTED then return end
     QUICK.target = (where == 'pin') and 'pin' or 'today'
     local margin, cardW, gapX, header = metrics()
-    local w = cardW - rnd(10 * scale)
+    local w = rnd(baseW(cols) * scale) - margin * 2
+    local y = header
     setOpt('QuickBox', 'W', w)
     setOpt('QuickBox', 'X', margin)
-    setOpt('QuickBox', 'Y', header)
-    setOpt('QuickBox', 'Text', '')
+    setOpt('QuickBox', 'Y', y)
+    setOpt('QuickHint', 'X', margin + rnd(4 * scale))
+    setOpt('QuickHint', 'Y', y - rnd(17 * scale))
+    setOpt('QuickHint', 'Text', (QUICK.target == 'pin' and '记到 常驻区' or '记到 今天')
+        .. '　·　回车保存　Esc 取消')
+    SKIN:Bang('!ZPos', '1')                 -- 输入时整块皮肤置顶
     SKIN:Bang('!UpdateMeter', 'QuickBox')
+    SKIN:Bang('!UpdateMeter', 'QuickHint')
     show('QuickBox')
+    show('QuickHint')
     SKIN:Bang('!Redraw')
     SKIN:Bang('!CommandMeasure', 'QuickFocus', 'Execute 1')
 end
 
 function quickDismiss()
-    hide('QuickBox')
-    SKIN:Bang('!Redraw')
+    quickClose()
 end
 
 function quickSubmit(txt)
     txt = clean(tostring(txt or ''))
-    hide('QuickBox')
+    quickClose()
     if txt == '' then SKIN:Bang('!Redraw'); return end
     local today = todayStr()
     if QUICK.target == 'pin' then
