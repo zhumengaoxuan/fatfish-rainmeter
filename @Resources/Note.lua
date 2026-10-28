@@ -1851,6 +1851,8 @@ function quickOpen(where)
     setOpt('QuickHint', 'Text', (QUICK.target == 'pin' and '记到 常驻区' or '记到 今天')
         .. '　·　回车保存　Esc 取消')
     SKIN:Bang('!ZPos', '1')                 -- 输入时整块皮肤置顶
+    -- 热键是从别的应用里按下的，前置激活才能收键盘
+    SKIN:Bang('["powershell.exe" "-NoProfile" "-ExecutionPolicy" "Bypass" "-WindowStyle" "Hidden" "-File" "#@#focus.ps1"]')
     SKIN:Bang('!UpdateMeter', 'QuickBox')
     SKIN:Bang('!UpdateMeter', 'QuickHint')
     show('QuickBox')
