@@ -237,8 +237,10 @@ local function writeAll()
     count = #notes
     local cur = readAll()
     if cur and #cur > 0 then
-        local bf = io.open(BAK, 'wb')
-        if not bf then bf = io.open(BAK_ALT, 'wb') end
+        -- BAK 在 boot() 里才赋值；启动早期就写盘时要自己兜底
+        local bak = BAK or (SKIN:GetVariable('CURRENTPATH') .. 'notes.txt.bak')
+        local bf = io.open(bak, 'wb')
+        if not bf and BAK_ALT then bf = io.open(BAK_ALT, 'wb') end
         if bf then bf:write(cur); bf:close() end
     end
     return writeRaw(serialize())
@@ -700,26 +702,8 @@ end
 local SWATCH_COLORS = { '176,158,255', '120,180,255', '110,220,190', '255,180,120' }
 
 local function placeSwatches(m)
-    SWOWN = tonumber(m) or -1
-    local _, cardW = metrics()
-    local x, y = cardXY(m + 1)
-    if not x then return false end
-    local rad = math.max(3, rnd(7 * scale))
-    -- 先隐藏再位移，避免看到跳格
-    for k = 1, 4 do hide('Sw_' .. k) end
-    -- 先全部移动 + 更新，再统一显示，避免旧位置闪一下
-    for k = 1, 4 do
-        local n = 'Sw_' .. k
-        setOpt(n, 'Shape', 'Ellipse ' .. rad .. ',' .. rad .. ',' .. rad .. ',' .. rad .. ' | Fill Color ' .. SWATCH_COLORS[k] .. ',255 | StrokeWidth 0')
-        setOpt(n, 'X', x + cardW - rnd((24 + 18 * (5 - k)) * scale) - rad)
-        setOpt(n, 'Y', y + rnd(14 * scale) - rad)
-    end
-    for k = 1, 4 do
-        local n = 'Sw_' .. k
-        SKIN:Bang('!UpdateMeter', n)   -- 先更新几何，命中框才会跟着走
-        show(n)
-    end
-    return true
+    -- 色点已移除（点击不可靠）；配色改由标题条单击循环
+    return false
 end
 
 function hoverCard(m)
@@ -730,7 +714,6 @@ function hoverCard(m)
     m = tonumber(m) or -1
     hoverIdx = m
     SKIN:Bang('!CommandMeasure', 'SwTimer', 'Stop 1')
-    placeSwatches(m)
     ring()
     SKIN:Bang('!Redraw')
 end
@@ -751,7 +734,6 @@ end
 
 function swHidePending()
     SWOWN = -1
-    for k = 1, 4 do hide('Sw_' .. k) end
     hoverIdx = -1
     ring()
     SKIN:Bang('!Redraw')
@@ -2066,7 +2048,7 @@ function commit(v)
     if mode == 2 then
         local nm = cleanName(v)
         if nm ~= '' then SKIN:Bang('!CommandMeasure', 'WeatherLua', "lookup('" .. nm .. "')") end
-        layout(); return
+        layout(); if hoverIdx and hoverIdx >= 0 then ring() end; return
     end
     if i < 1 or i > count then layout(); return end
     if mode == 1 then
@@ -2078,6 +2060,7 @@ function commit(v)
         if notes[i].text == '' then notes[i].text = '(空)' end
     end
     writeAll(); layout()
+    if hoverIdx and hoverIdx >= 0 then ring() end
 end
 
 function cancel()
