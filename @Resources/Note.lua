@@ -394,6 +394,8 @@ end
 -- 角标素材（顺序即右键「换插图」的循环顺序）
 IMG_LIST = { 'happy', 'note', 'cat', 'rice', 'snack', 'dance',
              'dove', 'flute', 'gift', 'leaves', 'pumpkin', 'snowman' }
+IMG_DIR = nil
+
 
 local function metrics()
     local s = scale
@@ -762,7 +764,7 @@ local function cardShape(m, isAI, th)
     setOpt('Name' .. m, 'FontColor', isAI and '120,220,255,255' or (th.accent .. ',235'))
     setOpt('Del' .. m, 'FontSize', rnd(12 * scale))
     setOpt('Text' .. m, 'FontSize', rnd(10 * scale))
-    setOpt('Text' .. m, 'FontWeight', 500)
+    setOpt('Text' .. m, 'FontWeight', 600)
     setOpt('Text' .. m, 'FontColor', th.head)
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale)))
     -- 高度给足，由统一的 CardClip 砖墙蒙版裁剪（容器本身不绘制，所以不能拿 Card 当蒙版）
@@ -1485,6 +1487,8 @@ function boot()
     layout()
     SKIN:Bang('!CommandMeasure', 'AutoTimer', 'Execute 1')
     BOOTED = true
+    imgReload()
+    if not io.open(imgDir() .. 'list.txt', 'rb') then imgScan() end
 end
 
 local function canEdit() return page == 0 end
@@ -2001,6 +2005,37 @@ function animeTick()
         return
     end
     if animeDate() ~= today then animeRun() end
+end
+
+
+-- ===== 贴图列表（自动发现）=====
+function imgDir()
+    return SKIN:GetVariable('CURRENTPATH') .. '@Resources\\img\\'
+end
+
+function imgReload()
+    local dir = imgDir()
+    local f = io.open(dir .. 'list.txt', 'rb')
+    if not f then
+        SKIN:Bang('!Log', '贴图列表不存在，使用内置 12 张', 'Notice')
+        return
+    end
+    local names = {}
+    for line in f:read('*a'):gmatch('[^\r\n]+') do
+        local n = line:match('^%s*(.-)%s*$')
+        if n ~= '' and n ~= 'NOTICE' then names[#names + 1] = n end
+    end
+    f:close()
+    if #names > 0 then
+        IMG_LIST = names
+        SKIN:Bang('!Log', '贴图列表 ' .. #names .. ' 张', 'Notice')
+    end
+end
+
+function imgScan()
+    SKIN:Bang('["powershell.exe" "-NoProfile" "-ExecutionPolicy" "Bypass" "-WindowStyle" "Hidden" "-File" "#@#img.ps1"]')
+    SKIN:Bang('!CommandMeasure', 'ImgScanTimer', 'Execute 1')
+    SKIN:Bang('!Log', '开始扫描贴图目录', 'Notice')
 end
 
 function cycleImg()
