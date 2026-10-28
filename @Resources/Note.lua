@@ -1827,6 +1827,7 @@ function drag(x, y)
         hideCard(dragIdx)
         showGhost(dragIdx)
     end
+    ghostFollowXY(x, y)
     if fixedHit(x, y) then
         hintFixed = true
         hintValid = true
@@ -1858,8 +1859,13 @@ function drag(x, y)
         hide('DropHint')
         hintValid = false
     end
+    ghostFollowXY(x, y)
+    SKIN:Bang('!Redraw')
+end
+
+-- 幽灵卡跟随鼠标：所有拖拽分支共用，保证卡与文字永远同步
+function ghostFollowXY(x, y)
     local margin, cardW, gapX, header, gapY, bottom, ch = metrics()
-    -- 拖拽预览的横向范围要覆盖「常驻区 + 时间列」整块，否则会被卡在中途
     local boardW = margin * 2 + fixedW() + cols * cardW + (cols - 1) * gapX
     local gx = clamp(x - grabDX, 4, boardW - cardW - 4)
     local gy = clamp(y - grabDY, 4, header + rows * pitch - gapY - 4)
@@ -1869,7 +1875,6 @@ function drag(x, y)
         setOpt('GhostName', 'X', gx + rnd(14 * scale)); setOpt('GhostName', 'Y', gy + rnd(8 * scale))
         setOpt('GhostText', 'X', gx + rnd(14 * scale)); setOpt('GhostText', 'Y', gy + rnd(40 * scale))
     end
-    SKIN:Bang('!Redraw')
 end
 
 -- ===== 番剧便签 =====
