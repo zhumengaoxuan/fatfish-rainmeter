@@ -439,7 +439,10 @@ end
 
 local function fixedCount()
     local n = 0
-    for i = 1, count do if notes[i].pin then n = n + 1 end end
+    for i = 1, #notes do
+        local x = notes[i]
+        if x and x.pin then n = n + 1 end
+    end
     return n
 end
 
@@ -598,8 +601,9 @@ end
 
 local function pinnedInsertIndex(k)
     local seen = 0
-    for i = 1, count do
-        if notes[i].pin then
+    for i = 1, #notes do
+        local x = notes[i]
+        if x and x.pin then
             seen = seen + 1
             if seen == k then return i end
         end
@@ -614,6 +618,19 @@ local function insertPinnedAt(k, note)
     count = #notes
 end
 
+
+-- 自愈：把 notes 里的 nil 空洞压掉，保持 count 与 #notes 一致
+function compactNotes()
+    local out = {}
+    for i = 1, #notes do
+        if notes[i] then out[#out + 1] = notes[i] end
+    end
+    if #out ~= #notes then
+        notes = out
+        SKIN:Bang('!Log', 'COMPACT ' .. #out, 'Notice')
+    end
+    count = #notes
+end
 
 local function buildColumns()
     local dragging = (dragIdx and dragIdx >= 1) or NEW_DRAG or (FAVUI and (FAVUI.drag or FAVUI.dropping))
@@ -632,7 +649,7 @@ local function buildColumns()
     end
     colLists = {}
     for c = 1, cols do colLists[c] = {} end
-    if count ~= #notes then count = #notes end
+    compactNotes()
     for i = 1, count do
         local n = notes[i]
         if n and not n.pin then
@@ -1944,6 +1961,7 @@ function animeTick()
 end
 
 function drop(mx, my)
+    count = #notes
     local hadFixed = hintFixed
     hintFixed = false
     if FAVUI and FAVUI.barDrag then
@@ -1979,9 +1997,14 @@ function drop(mx, my)
 
     -- 拖进常驻区：提前拦下，避免落进下面的色板/时间列逻辑
     if mx and my and dragIdx and dragIdx >= 1 and fixedHit(mx, my) then
+        SKIN:Bang('!Log', 'PINDBG pre dragIdx=' .. tostring(dragIdx) .. ' count=' .. tostring(count) .. ' n=' .. tostring(#notes), 'Notice')
         local moved = table.remove(notes, dragIdx)
         count = #notes
-        if moved then insertPinnedAt(hintFixedSlot or 1, moved) end
+        SKIN:Bang('!Log', 'PINDBG removed moved=' .. tostring(moved ~= nil) .. ' count=' .. tostring(count) .. ' n=' .. tostring(#notes), 'Notice')
+        if moved then
+            insertPinnedAt(hintFixedSlot or 1, moved)
+            SKIN:Bang('!Log', 'PINDBG inserted slot=' .. tostring(hintFixedSlot) .. ' count=' .. tostring(count) .. ' n=' .. tostring(#notes), 'Notice')
+        end
         sel = nil
         dragIdx = -1; pending = false; dragCol = nil; dragTo = nil
         hide('DropHint'); hideGhost()
@@ -2052,7 +2075,8 @@ function drop(mx, my)
     hide('DropHint')
     if wasDragging and hadFixed then
         local moved = table.remove(notes, from)
-        insertPinnedAt(hintFixedSlot or 1, moved)
+        count = #notes
+        if moved then insertPinnedAt(hintFixedSlot or 1, moved) end
         sel = nil
         hintFixed = false
         writeAll()
