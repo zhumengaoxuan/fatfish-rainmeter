@@ -371,6 +371,26 @@ local function holidayOf(date)
     return cnFor(monthKeyOf(date), d)
 end
 
+function noteSoftBreak(s)
+    -- 只给纯 ASCII 的超长无空格串加断点（GBK 文本不能插 UTF-8 字符）
+    if not s or #s < 18 then return s end
+    local parts = {}
+    for tok in tostring(s):gmatch('[^\32\9]+') do
+        if #tok > 18 and tok:match('^[%z\1-\127]+$') then
+            local out, n = {}, 0
+            for ch in tok:gmatch('.') do
+                out[#out + 1] = ch
+                n = n + 1
+                if n % 12 == 0 then out[#out + 1] = ' ' end
+            end
+            parts[#parts + 1] = table.concat(out)
+        else
+            parts[#parts + 1] = tok
+        end
+    end
+    return table.concat(parts, ' ')
+end
+
 local function metrics()
     local s = scale
     return rnd(B_MARGIN * s), rnd(B_CARD_W * s), rnd(B_GAP_X * s),
@@ -880,6 +900,7 @@ autoReset = function()
         if i and notes[i] then
             local d2 = notes[i].text
             if notes[i].name == '今日番剧' then d2 = d2:gsub(' ｜ ', '#CRLF#') end
+            d2 = noteSoftBreak(d2)
             setOpt('Text' .. m, 'Text', d2)
             -- 关键：滚动改过 Y，复位时必须一起还原，否则文字停在半截
             local card = SKIN:GetMeter('Card' .. m)
@@ -949,6 +970,7 @@ function autoScrollTick()
         AUTO.m = m; AUTO.seg = true; AUTO.off = 0; AUTO.segH = h; AUTO.last = os.clock()
         local seg = note.text
         if note.name == '今日番剧' then seg = seg:gsub(' ｜ ', '#CRLF#') end
+        seg = noteSoftBreak(seg)
         setOpt('Text' .. m, 'Text', seg .. '#CRLF#' .. seg)
         SKIN:Bang('!UpdateMeter', 'Text' .. m)
         return
@@ -1025,6 +1047,7 @@ local function updateCard(i, c, r, fixed)
     setOpt('Head' .. m, 'ToolTipText', '点标题换配色')
     local disp = notes[i].text
     if notes[i].name == '今日番剧' then disp = disp:gsub(' ｜ ', '#CRLF#') end
+    disp = noteSoftBreak(disp)
     setOpt('Text' .. m, 'Text', disp)
     for _, pfx in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do
         SKIN:Bang('!UpdateMeter', pfx .. m)
