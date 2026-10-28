@@ -990,7 +990,9 @@ local function updateCard(i, c, r, fixed)
     local off = tonumber(SCROLL[notes[i]]) or 0
     setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale) - off)
     setOpt('Name' .. m, 'Text', notes[i].name)
-    setOpt('Text' .. m, 'Text', notes[i].text)
+    local disp = notes[i].text
+    if notes[i].name == '今日番剧' then disp = disp:gsub(' ｜ ', '#CRLF#') end
+    setOpt('Text' .. m, 'Text', disp)
     for _, pfx in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do
         SKIN:Bang('!UpdateMeter', pfx .. m)
     end
@@ -1762,24 +1764,25 @@ function animeImport()
     for line in d:gmatch('[^\r\n]+') do
         if not line:match('^#') then
             local tt, title = line:match('^([^\t]+)\t(.+)$')
-            if tt and title then list[#list + 1] = tt .. ' ' .. title end
+            if tt and title then list[#list + 1] = string.format('%-5s', tt) .. title end
         end
     end
     if #list == 0 then return end
     local shown = {}
-    for i = 1, math.min(6, #list) do shown[#shown + 1] = list[i] end
+    for i = 1, math.min(4, #list) do shown[#shown + 1] = list[i] end
     local body = table.concat(shown, ' ｜ ')
-    if #list > 6 then body = body .. ' ｜ 等 ' .. #list .. ' 部' end
+    if #list > 4 then body = body .. ' ｜ 等 ' .. #list .. ' 部' end
 
     local today = todayStr()
     for i = 1, count do
         if notes[i].name == '今日番剧' and notes[i].date == today then
             notes[i].text = body
+            notes[i].theme = 3
             writeAll(); layout()
             return
         end
     end
-    notes[#notes + 1] = { date = today, name = '今日番剧', text = body, src = 'user' }
+    notes[#notes + 1] = { date = today, name = '今日番剧', text = body, src = 'user', theme = 3 }
     count = #notes
     writeAll(); layout()
 end
