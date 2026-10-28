@@ -2915,8 +2915,8 @@ end
 -- ★ 的呼吸效果：FontColor 里的节变量在 String 上不刷新，改由 Lua 每 tick 设置
 function favPulseTick()
     if FAVUI and FAVUI.dimTop then return end
-    local a = math.floor(245 + 10 * math.sin(os.clock() * 2 * math.pi / 3.2))
-    if a < 75 then a = 75 elseif a > 255 then a = 255 end
+    -- 星标保持完全不透明：alpha < 255 会让下层的涟漪线透上来
+    local a = 255
     setOpt('FavBtn', 'FontColor', themeColors().accent .. ',' .. a)
     SKIN:Bang('!UpdateMeter', 'FavBtn')
 end
