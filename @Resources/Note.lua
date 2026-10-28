@@ -1062,6 +1062,14 @@ local function updateCard(i, c, r, fixed)
     setOpt('Head' .. m, 'X', x + 1); setOpt('Head' .. m, 'Y', y + 1)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
     setOpt('Del' .. m, 'X', x + cardW - rnd(24 * scale)); setOpt('Del' .. m, 'Y', y + rnd(14 * scale))
+    -- 有插图时给正文加描边，保证压在图上也读得清
+    if notes[i].img and not (clean(notes[i].text or '') == '' or clean(notes[i].text or '') == '(空)' or clean(notes[i].text or '') == '新便签') then
+        setOpt('Text' .. m, 'StringEffect', 'Border')
+        setOpt('Text' .. m, 'FontEffectColor', '12,10,24,190')
+    else
+        setOpt('Text' .. m, 'StringEffect', 'None')
+    end
+
     -- 插图：正文为空时当大图，否则当标题栏角标
     local bimg = notes[i].img
     local bodyTxt = clean(notes[i].text or '')
