@@ -425,6 +425,7 @@ end
 
 -- 常驻区：按 y 找最靠近的插入位（1..N+1），并换算成 notes 数组下标
 local layout
+local BOOTED = false
 local FAVP = { t = -1 }
 
 local FIXUI = { scroll = 0, hovering = false, lastAct = 0, sawLeave = false, half = '', t = 0, upY = 0, dnY = 0, upBase = 0, dnBase = 0 }
@@ -1399,6 +1400,7 @@ function boot()
     SKIN:Bang('!CommandMeasure', 'MeasureWeather', 'Update')
     layout()
     SKIN:Bang('!CommandMeasure', 'AutoTimer', 'Execute 1')
+    BOOTED = true
 end
 
 local function canEdit() return page == 0 end
@@ -1791,6 +1793,8 @@ function animeRun()
 end
 
 function animeImport()
+    -- 便签还没加载完就导入，会把整个文件写成 1 条（2026-10-28 的事故）
+    if not BOOTED or count == 0 then return end
     local d = readFileRaw(animePath())
     if not d then return end
     local list = {}
@@ -1821,6 +1825,7 @@ function animeImport()
 end
 
 function animeTick()
+    if not BOOTED then return end
     if not animeEnabled() then return end
     local today = todayStr()
     -- 今天抓到了但便签还没生成（或丢了）：导入
