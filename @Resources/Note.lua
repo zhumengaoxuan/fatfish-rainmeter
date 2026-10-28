@@ -1076,7 +1076,7 @@ local function updateCard(i, c, r, fixed)
             setOpt('Img' .. m, 'H', bw)
             setOpt('Img' .. m, 'X', x + math.floor((cardW - bw) / 2))
             setOpt('Img' .. m, 'Y', y + rnd(26 * scale) + math.floor((cardH - rnd(26 * scale) - bw) / 2))
-            setOpt('Img' .. m, 'ImageAlpha', 120)
+            setOpt('Img' .. m, 'ImageAlpha', 255)
         else
             -- ”“œ¬Ω«¥ÛÕº£∫”√ CardClip ≤√ºÙ£¨π “‚ÃΩ≥ˆø®∆¨”“œ¬Ω«
             local bb = math.max(72, rnd(108 * scale))
@@ -1085,7 +1085,7 @@ local function updateCard(i, c, r, fixed)
             setOpt('Img' .. m, 'H', bb)
             setOpt('Img' .. m, 'X', x + cardW - rnd(86 * scale))
             setOpt('Img' .. m, 'Y', y + cardH - rnd(90 * scale))
-            setOpt('Img' .. m, 'ImageAlpha', 235)
+            setOpt('Img' .. m, 'ImageAlpha', 135)
         end
         SKIN:Bang('!UpdateMeter', 'Img' .. m)
         show('Img' .. m)
