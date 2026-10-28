@@ -842,7 +842,7 @@ function cycleTheme(i)
     if not i or not notes[i] then return end
     local cur = clamp(tonumber(notes[i].theme) or 1, 1, 4)
     notes[i].theme = (cur % 4) + 1
-    if notes[i].src == auto then notes[i].locked = true end
+    if notes[i].src == 'auto' then notes[i].locked = true end
     writeAll()
     SKIN:Bang('!CommandMeasure', 'NoteLua', 'relayoutWeather()')
     placeSwatches(i - 1)
@@ -2086,7 +2086,7 @@ function imgPickTick()
     local i, val = tostring(d or ''):match('^(%d+)\t([^\r\n]*)')
     i = tonumber(i)
     if not i or not notes[i] then return end
-    notes[i].locked = true
+    if val ~= 'lock:0' and notes[i].src == 'auto' then notes[i].locked = true end
     if val == 'lock:0' then
         notes[i].locked = nil
         writeAll(); layout()
@@ -2381,7 +2381,7 @@ function commit(v)
         notes[i].text = clean(v)
         if notes[i].text == '' then notes[i].text = '(Пе)' end
     end
-    if notes[i].src == auto then notes[i].locked = true end
+    if notes[i].src == 'auto' then notes[i].locked = true end
     writeAll(); layout()
     if hoverIdx and hoverIdx >= 0 then ring() end
 end
