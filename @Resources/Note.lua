@@ -1839,6 +1839,7 @@ end
 function quickOpen(where)
     if not BOOTED then return end
     QUICK.target = (where == 'pin') and 'pin' or 'today'
+    QUICK.guardUntil = os.clock() + 1.6   -- 抢前台期间忽略失焦事件
     local margin, cardW, gapX, header = metrics()
     local w = rnd(baseW(cols) * scale) - margin * 2
     local bh = rnd(baseH(rows) * scale)
@@ -1855,13 +1856,17 @@ function quickOpen(where)
     SKIN:Bang('["powershell.exe" "-NoProfile" "-ExecutionPolicy" "Bypass" "-WindowStyle" "Hidden" "-File" "#@#focus.ps1"]')
     SKIN:Bang('!UpdateMeter', 'QuickBox')
     SKIN:Bang('!UpdateMeter', 'QuickHint')
-    show('QuickBox')
-    show('QuickHint')
     SKIN:Bang('!Redraw')
+    -- 等 focus.ps1 把前台抢过来、进程退出之后再显示，否则 TextEdit 会被失焦事件关掉
     SKIN:Bang('!CommandMeasure', 'QuickFocus', 'Execute 1')
 end
 
 function quickDismiss()
+    -- 抢前台/建进程期间会掉一次焦点，这段时间不要关框
+    if os.clock() < (QUICK.guardUntil or 0) then
+        SKIN:Bang('!CommandMeasure', 'QuickFocus', 'Execute 1')
+        return
+    end
     quickClose()
 end
 
