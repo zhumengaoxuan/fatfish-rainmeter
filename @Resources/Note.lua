@@ -1078,13 +1078,13 @@ local function updateCard(i, c, r, fixed)
             setOpt('Img' .. m, 'Y', y + rnd(26 * scale) + math.floor((cardH - rnd(26 * scale) - bw) / 2))
             setOpt('Img' .. m, 'ImageAlpha', 120)
         else
-            -- 右下角大图：完整落在卡片内（圆角范围内），不依赖容器裁剪
+            -- 右下角大图：用 CardClip 裁剪，故意探出卡片右下角
             local bb = math.max(72, rnd(108 * scale))
-            setOpt('Img' .. m, 'Container', '')
+            setOpt('Img' .. m, 'Container', 'CardClip' .. m)
             setOpt('Img' .. m, 'W', bb)
             setOpt('Img' .. m, 'H', bb)
-            setOpt('Img' .. m, 'X', x + cardW - bb - rnd(8 * scale))
-            setOpt('Img' .. m, 'Y', y + cardH - bb - rnd(8 * scale))
+            setOpt('Img' .. m, 'X', x + cardW - rnd(86 * scale))
+            setOpt('Img' .. m, 'Y', y + cardH - rnd(90 * scale))
             setOpt('Img' .. m, 'ImageAlpha', 235)
         end
         SKIN:Bang('!UpdateMeter', 'Img' .. m)
