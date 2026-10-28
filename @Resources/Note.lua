@@ -700,6 +700,7 @@ end
 local SWATCH_COLORS = { '176,158,255', '120,180,255', '110,220,190', '255,180,120' }
 
 local function placeSwatches(m)
+    SWOWN = tonumber(m) or -1
     local _, cardW = metrics()
     local x, y = cardXY(m + 1)
     if not x then return false end
@@ -715,8 +716,8 @@ local function placeSwatches(m)
     end
     for k = 1, 4 do
         local n = 'Sw_' .. k
+        SKIN:Bang('!UpdateMeter', n)   -- 先更新几何，命中框才会跟着走
         show(n)
-        SKIN:Bang('!UpdateMeter', n)
     end
     return true
 end
@@ -744,10 +745,12 @@ function leaveCard(mx, my)
     autoReset()
     if boardLocked() then return end
     if (dragIdx and dragIdx >= 1) or NEW_DRAG then return end
-    swHidePending()
+    -- 延时隐藏：给鼠标留出移向色点的时间（SwTimer 400ms 后调 swHidePending）
+    SKIN:Bang('!CommandMeasure', 'SwTimer', 'Execute 1')
 end
 
 function swHidePending()
+    SWOWN = -1
     for k = 1, 4 do hide('Sw_' .. k) end
     hoverIdx = -1
     ring()
@@ -758,12 +761,23 @@ function swatchClick(k)
     -- favOpen 是后声明的 local，这里的自由变量会解析成全局，必须走函数查询
     if favIsOpen() then
         setFavTheme(k)
-    elseif hoverIdx >= 0 then
-        setCardTheme(hoverIdx, k)
+    else
+        local owner = (hoverIdx >= 0) and hoverIdx or SWOWN
+        if owner and owner >= 0 then setCardTheme(owner, k) end
     end
 end
 
 local cardNote = {}
+
+function cycleTheme(i)
+    i = tonumber(i)
+    if not i or not notes[i] then return end
+    local cur = clamp(tonumber(notes[i].theme) or 1, 1, 4)
+    notes[i].theme = (cur % 4) + 1
+    writeAll()
+    SKIN:Bang('!CommandMeasure', 'NoteLua', 'relayoutWeather()')
+    placeSwatches(i - 1)
+end
 
 function setCardTheme(m, k)
     local i = cardNote[tonumber(m)]
@@ -851,7 +865,9 @@ autoReset = function()
         local m = AUTO.m
         local i = cardNote[m]
         if i and notes[i] then
-            setOpt('Text' .. m, 'Text', notes[i].text)
+            local d2 = notes[i].text
+            if notes[i].name == '今日番剧' then d2 = d2:gsub(' ｜ ', '#CRLF#') end
+            setOpt('Text' .. m, 'Text', d2)
             -- 关键：滚动改过 Y，复位时必须一起还原，否则文字停在半截
             local card = SKIN:GetMeter('Card' .. m)
             local by = card and card:GetY() or 0
@@ -918,7 +934,9 @@ function autoScrollTick()
     if AUTO.m ~= m or not AUTO.seg then
         autoReset()
         AUTO.m = m; AUTO.seg = true; AUTO.off = 0; AUTO.segH = h; AUTO.last = os.clock()
-        setOpt('Text' .. m, 'Text', note.text .. '#CRLF#' .. note.text)
+        local seg = note.text
+        if note.name == '今日番剧' then seg = seg:gsub(' ｜ ', '#CRLF#') end
+        setOpt('Text' .. m, 'Text', seg .. '#CRLF#' .. seg)
         SKIN:Bang('!UpdateMeter', 'Text' .. m)
         return
     end
@@ -990,6 +1008,8 @@ local function updateCard(i, c, r, fixed)
     local off = tonumber(SCROLL[notes[i]]) or 0
     setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale) - off)
     setOpt('Name' .. m, 'Text', notes[i].name)
+    setOpt('Head' .. m, 'LeftMouseUpAction', '[!CommandMeasure NoteLua "cycleTheme(' .. i .. ')"]')
+    setOpt('Head' .. m, 'ToolTipText', '点标题换配色')
     local disp = notes[i].text
     if notes[i].name == '今日番剧' then disp = disp:gsub(' ｜ ', '#CRLF#') end
     setOpt('Text' .. m, 'Text', disp)
@@ -1452,6 +1472,7 @@ end
 -- 鼠标悬停在便签名框上时显示配色点
 local SWCOL = { '176,158,255', '120,180,255', '110,220,190', '255,180,120' }
 local swPending = nil
+local SWOWN = -1
 
 
 -- ===== 拖拽 =====
