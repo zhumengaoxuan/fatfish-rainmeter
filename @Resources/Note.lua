@@ -762,6 +762,7 @@ local function cardShape(m, isAI, th)
     setOpt('Name' .. m, 'FontColor', isAI and '120,220,255,255' or (th.accent .. ',235'))
     setOpt('Del' .. m, 'FontSize', rnd(12 * scale))
     setOpt('Text' .. m, 'FontSize', rnd(10 * scale))
+    setOpt('Text' .. m, 'FontWeight', 500)
     setOpt('Text' .. m, 'FontColor', th.head)
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale)))
     -- 高度给足，由统一的 CardClip 砖墙蒙版裁剪（容器本身不绘制，所以不能拿 Card 当蒙版）
