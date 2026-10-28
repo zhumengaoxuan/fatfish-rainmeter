@@ -642,17 +642,13 @@ local newFixedSlot = 1
 
 local hoverIdx = -1
 
-local 
+local cardXY
+
 function ring()
     local target = (dragIdx and dragIdx >= 1) and dragIdx or (hoverIdx >= 0 and hoverIdx + 1 or -1)
     if target and target >= 1 and target <= count and dragIdx < 1 then
-        local c, r, x, y = 1, 1
-        for cc = 1, cols do
-            for rr, idx in ipairs(colLists[cc] or {}) do
-                if idx == target then c, r = cc, rr end
-            end
-        end
-        x, y = slotPos(r, c)
+        local x, y = cardXY(target)
+        if not x then x, y = slotPos(1, 1) end
         local _, cw2, _, _, gapY2, _, _ = metrics()
         local ch2 = pitch - gapY2
         -- 光圈跟随该便签自己的配色
@@ -705,14 +701,8 @@ local SWATCH_COLORS = { '176,158,255', '120,180,255', '110,220,190', '255,180,12
 
 local function placeSwatches(m)
     local _, cardW = metrics()
-    local cc, rr = nil, nil
-    for c = 1, cols do
-        for r2, idx in ipairs(colLists[c] or {}) do
-            if idx - 1 == m then cc, rr = c, r2 end
-        end
-    end
-    if not cc then return false end
-    local x, y = slotPos(rr, cc)
+    local x, y = cardXY(m + 1)
+    if not x then return false end
     local rad = math.max(3, rnd(7 * scale))
     -- 先隐藏再位移，避免看到跳格
     for k = 1, 4 do hide('Sw_' .. k) end
@@ -978,8 +968,12 @@ local function updateCard(i, c, r, fixed)
         x = margin; y = header + (r - 1) * pitch
         setOpt('Card' .. m, 'MouseScrollUpAction', '[!CommandMeasure NoteLua "fixedScroll(-1)"]')
         setOpt('Card' .. m, 'MouseScrollDownAction', '[!CommandMeasure NoteLua "fixedScroll(1)"]')
-        setOpt('Card' .. m, 'MouseOverAction', '[!CommandMeasure NoteLua "fixedEnter()"]')
-        setOpt('Card' .. m, 'MouseLeaveAction', '[!CommandMeasure NoteLua "fixedLeave()"]')
+        setOpt('Card' .. m, 'MouseOverAction',
+            '[!CommandMeasure NoteLua "hoverCard(' .. m .. ')"]'
+            .. '[!CommandMeasure NoteLua "fixedEnter()"]')
+        setOpt('Card' .. m, 'MouseLeaveAction',
+            '[!CommandMeasure NoteLua "leaveCard()"]'
+            .. '[!CommandMeasure NoteLua "fixedLeave()"]')
     else
         x, y = slotPos(r, c)
     end
@@ -1900,6 +1894,27 @@ local function openBox(x, y, w, h, text)
     SKIN:Bang('!Redraw')
     SKIN:Bang('!CommandMeasure', 'FocusTimer', 'Execute 1')
 end
+-- 便签在屏幕上的左上角：固定便签用常驻区槽位，其它用时间列格位
+cardXY = function(i)
+    local n = notes[i]
+    if not n then return nil end
+    local margin, cardW, gapX, header = metrics()
+    if n.pin then
+        local k = 0
+        for idx = 1, count do
+            if notes[idx].pin then
+                k = k + 1
+                if idx == i then break end
+            end
+        end
+        local slot = k - FIXUI.scroll
+        if slot < 1 or slot > rows then return nil end
+        return margin, header + (slot - 1) * pitch
+    end
+    local c, r = locate(i)
+    return slotPos(r, c)
+end
+
 local function locate(i)
     for cc = 1, cols do
         for rr, idx in ipairs(colLists[cc] or {}) do
@@ -1915,8 +1930,8 @@ function edit(i)
     if i < 1 or i > count then return end
     sel = i; editIdx = i; editMode = 0
     local margin, cardW, gapX, header = metrics()
-    local c, r = locate(i)
-    local x, y = slotPos(r, c)
+    local x, y = cardXY(i)
+    if not x then return end
     hide('Text' .. (i - 1))
     openBox(x + rnd(12 * scale), y + rnd(36 * scale), cardW - rnd(26 * scale), rnd(24 * scale), notes[i].text)
     ring()
@@ -1929,8 +1944,8 @@ function rename(i)
     if editIdx == i then cancel() end
     sel = i; editIdx = i; editMode = 1
     local margin, cardW, gapX, header = metrics()
-    local c, r = locate(i)
-    local x, y = slotPos(r, c)
+    local x, y = cardXY(i)
+    if not x then return end
     hide('Name' .. (i - 1))
     openBox(x + rnd(12 * scale), y + rnd(2 * scale), rnd(170 * scale), rnd(20 * scale), notes[i].name)
     ring()
