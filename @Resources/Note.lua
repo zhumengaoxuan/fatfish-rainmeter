@@ -2059,7 +2059,7 @@ function pickImgStart(i)
     local f = io.open(uiStatePath(), 'wb')
     if f then
         f:write('#imgpick ' .. i .. '\r\n#name ' .. clean(notes[i].name)
-            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n')
+            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n#img ' .. (notes[i].img or '-') .. '\r\n')
         f:close()
     end
 
