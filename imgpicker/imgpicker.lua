@@ -19,7 +19,13 @@ end
 local NAMES = {}
 local TARGET, CUR, CURTHEME, LOCKED = 0, nil, 1, nil
 
-local SWATCH = { '176,158,255', '120,180,255', '110,220,190', '255,180,120' }
+local SWATCH = { '120,165,255', '86,212,196', '186,150,255', '255,140,176' }
+local function loadSwatches(d)
+    for k = 1, 4 do
+        local v = d and d:match('#sw' .. k .. '%s+([%d,%s]+)')
+        if v then SWATCH[k] = (v:gsub('%s', '')) end
+    end
+end
 
 function loadList()
     NAMES = {}
@@ -91,6 +97,7 @@ function boot()
     SKIN:Bang('!ZPos', '1')
 
     loadList()
+    loadSwatches(d)
     SKIN:Bang('!SetOption', 'PickTitle', 'Text', '∏¯°∏' .. (name ~= '' and name or '±„«© ' .. i) .. '°π…Ë÷√')
     SKIN:Bang('!UpdateMeter', 'PickTitle')
     render()
