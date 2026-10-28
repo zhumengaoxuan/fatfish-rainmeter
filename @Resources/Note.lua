@@ -940,9 +940,7 @@ autoReset = function()
             d2 = noteSoftBreak(d2)
             setOpt('Text' .. m, 'Text', d2)
             -- 关键：滚动改过 Y，复位时必须一起还原，否则文字停在半截
-            local card = SKIN:GetMeter('Card' .. m)
-            local by = card and card:GetY() or 0
-            setOpt('Text' .. m, 'Y', by + rnd(40 * scale))
+            setOpt('Text' .. m, 'Y', rnd(40 * scale) - (rnd(26 * scale) + 1))
             SKIN:Bang('!UpdateMeter', 'Text' .. m)
             SKIN:Bang('!Redraw')
         end
@@ -1018,9 +1016,7 @@ function autoScrollTick()
     if dt < 0 or dt > 0.5 then dt = 0.032 end
     AUTO.off = AUTO.off + dt * 12 * scale
     if AUTO.off >= AUTO.segH then AUTO.off = 0 end
-    local card = SKIN:GetMeter('Card' .. m)
-    local by = card and card:GetY() or 0
-    setOpt('Text' .. m, 'Y', by + rnd(40 * scale) - rnd(AUTO.off))
+    setOpt('Text' .. m, 'Y', rnd(40 * scale) - (rnd(26 * scale) + 1) - rnd(AUTO.off))
     SKIN:Bang('!UpdateMeter', 'Text' .. m)
     SKIN:Bang('!Redraw')
 end
@@ -1038,10 +1034,7 @@ function noteScroll(m, delta)
     cur = cur + delta * lineH
     if cur < 0 then cur = 0 elseif cur > maxOffset then cur = maxOffset end
     SCROLL[note] = cur
-    local mn = SKIN:GetMeter('Card' .. m)
-    local bx, by = 0, 0
-    if mn then bx = mn:GetX() or 0; by = mn:GetY() or 0 end
-    setOpt('Text' .. m, 'Y', by + rnd(40 * scale) - cur)
+    setOpt('Text' .. m, 'Y', rnd(40 * scale) - (rnd(26 * scale) + 1) - cur)
     SKIN:Bang('!UpdateMeter', 'Text' .. m)
     SKIN:Bang('!Redraw')
 end
@@ -2091,12 +2084,16 @@ end
 function resetScrollFor(i)
     i = tonumber(i)
     if not i or not notes[i] then return end
+    local m = i - 1
+    -- 先让它自己复位（会把双段文本还原成单段）
+    if AUTO.seg and AUTO.m == m then autoReset() end
     SCROLL[notes[i]] = nil
-    if AUTO and AUTO.m == (i - 1) then
-        AUTO.m = -1
-        AUTO.seg = false
-        AUTO.off = 0
-    end
+    -- 兜底：无论之前是什么状态，都把文本和 Y 拉回正常
+    local disp = notes[i].text
+    if notes[i].name == '今日番剧' then disp = disp:gsub(' ｜ ', '#CRLF#') end
+    setOpt('Text' .. m, 'Text', noteSoftBreak(disp))
+    setOpt('Text' .. m, 'Y', rnd(40 * scale) - (rnd(26 * scale) + 1))
+    SKIN:Bang('!UpdateMeter', 'Text' .. m)
 end
 
 function imgPickTick()
