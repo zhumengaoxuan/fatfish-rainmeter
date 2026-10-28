@@ -311,7 +311,7 @@ local function parse(data)
                         src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user',
                         theme = tonumber(th) or 1,
                         pin = (pn == '1') or nil,
-                        img = (im and im ~= '' and im) or nil,
+                        img = (im and im:match('^[%w_%-]+$') and not im:match('^%d%d%d%d%-%d%d%-%d%d$') and im) or nil,
                         locked = (lk == '1') or nil }
                 else
                     local name, txt = l:match('^([^\t]*)\t(.*)$')
@@ -1086,7 +1086,7 @@ local function updateCard(i, c, r, fixed)
     end
 
     -- 插图：正文为空时当大图，否则当标题栏角标
-    local bimg = notes[i].img
+    local bimg = imgAvailable(notes[i].img)
     local bodyTxt = clean(notes[i].text or '')
     local isEmpty = (bodyTxt == '' or bodyTxt == '(空)' or bodyTxt == '新便签')
     if not bimg and isEmpty then bimg = 'cat' end
@@ -2147,6 +2147,18 @@ function imgPickTick()
     SKIN:Bang('!Log', '面板已设置：' .. i .. ' -> ' .. tostring(val), 'Notice')
 end
 
+IMG_OK = {}
+function imgAvailable(name)
+    if not name or name == '' then return nil end
+    local cached = IMG_OK[name]
+    if cached ~= nil then if cached then return name else return nil end end
+    local f = io.open((SKIN:GetVariable('CURRENTPATH') .. '@Resources\\img\\' .. name .. '.png'), 'rb')
+    if f then f:close(); IMG_OK[name] = true; return name end
+    IMG_OK[name] = false
+    SKIN:Bang('!Log', '插图缺失，已忽略：' .. name, 'Warning')
+    return nil
+end
+
 function cycleImg()
     local idx = (hoverIdx and hoverIdx >= 0) and (hoverIdx + 1) or sel
     if not idx or idx < 1 or not notes[idx] then
@@ -2951,6 +2963,10 @@ local function favRead()
                 local im, at
                 local a, b = rest:match('^([^\t]*)\t(.*)$')
                 if a then im, at = a, b else im, at = nil, rest end
+                -- 旧四列格式：第 4 列其实是「收藏日期」，不是图名
+                if im and im:match('^%d%d%d%d%-%d%d%-%d%d$') and (at == nil or at == '') then
+                    at = im; im = nil
+                end
                 list[#list + 1] = { name = nm, text = tx, theme = tonumber(th) or 1,
                     img = (im ~= nil and im ~= '' and im) or nil, at = at }
             end
