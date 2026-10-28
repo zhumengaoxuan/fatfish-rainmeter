@@ -190,7 +190,7 @@ local function serialize()
     for d in pairs(autoskips) do body = body .. '#autoskip ' .. d .. '\r\n' end
     for i = 1, count do
         local n = notes[i]
-        body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. (n.pin and '\t1' or '') .. '\r\n'
+        body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. (n.pin and '\t1' or (n.img and '\t' or '')) .. (n.img and ('\t' .. n.img) or '') .. '\r\n'
     end
     return body
 end
@@ -300,9 +300,9 @@ local function parse(data)
             if pg then gpage = tonumber(pg) end
         elseif l ~= '' then
             if #list < MAXN then
-                local d, n, t, s, th, pn = l:match('^(%d%d%d%d%-%d%d%-%d%d)\t([^\t]*)\t([^\t]*)\t?(%a*)\t?(%d*)\t?(%d*)$')
+                local d, n, t, s, th, pn, im = l:match('^(%d%d%d%d%-%d%d%-%d%d)\t([^\t]*)\t([^\t]*)\t?(%a*)\t?(%d*)\t?(%d*)\t?([%a%d_]*)$')
                 if d and n and t then
-                    list[#list + 1] = { date = d, name = n, text = t, src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user', theme = tonumber(th) or 1, pin = (pn == '1') or nil }
+                    list[#list + 1] = { date = d, name = n, text = t, src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user', theme = tonumber(th) or 1, pin = (pn == '1') or nil, img = (im ~= '' and im) or nil }
                 else
                     local name, txt = l:match('^([^\t]*)\t(.*)$')
                     if version == 'v1' or not name then name, txt = nil, l end
@@ -390,6 +390,10 @@ function noteSoftBreak(s)
     end
     return table.concat(parts, ' ')
 end
+
+-- 角标素材（顺序即右键「换插图」的循环顺序）
+IMG_LIST = { 'happy', 'note', 'cat', 'rice', 'snack', 'dance',
+             'dove', 'flute', 'gift', 'leaves', 'pumpkin', 'snowman' }
 
 local function metrics()
     local s = scale
@@ -1058,6 +1062,34 @@ local function updateCard(i, c, r, fixed)
     setOpt('Head' .. m, 'X', x + 1); setOpt('Head' .. m, 'Y', y + 1)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
     setOpt('Del' .. m, 'X', x + cardW - rnd(24 * scale)); setOpt('Del' .. m, 'Y', y + rnd(14 * scale))
+    -- 插图：正文为空时当大图，否则当标题栏角标
+    local bimg = notes[i].img
+    local bodyTxt = clean(notes[i].text or '')
+    local isEmpty = (bodyTxt == '' or bodyTxt == '(空)' or bodyTxt == '新便签')
+    if not bimg and isEmpty then bimg = 'cat' end
+    if bimg then
+        local path = SKIN:GetVariable('CURRENTPATH') .. '@Resources\\img\\' .. bimg .. '.png'
+        setOpt('Img' .. m, 'ImageName', path)
+        if isEmpty then
+            local bw = math.max(48, rnd(88 * scale))
+            setOpt('Img' .. m, 'W', bw)
+            setOpt('Img' .. m, 'H', bw)
+            setOpt('Img' .. m, 'X', x + math.floor((cardW - bw) / 2))
+            setOpt('Img' .. m, 'Y', y + rnd(26 * scale) + math.floor((cardH - rnd(26 * scale) - bw) / 2))
+            setOpt('Img' .. m, 'ImageAlpha', 120)
+        else
+            local bb = math.max(16, rnd(22 * scale))
+            setOpt('Img' .. m, 'W', bb)
+            setOpt('Img' .. m, 'H', bb)
+            setOpt('Img' .. m, 'X', x + cardW - rnd(26 * scale) - bb)
+            setOpt('Img' .. m, 'Y', y + math.floor((rnd(26 * scale) - bb) / 2) + rnd(1 * scale))
+            setOpt('Img' .. m, 'ImageAlpha', 225)
+        end
+        SKIN:Bang('!UpdateMeter', 'Img' .. m)
+        show('Img' .. m)
+    else
+        hide('Img' .. m)
+    end
     local off = tonumber(SCROLL[notes[i]]) or 0
     setOpt('Text' .. m, 'X', x + rnd(14 * scale)); setOpt('Text' .. m, 'Y', y + rnd(40 * scale) - off)
     setOpt('Name' .. m, 'Text', notes[i].name)
@@ -1958,6 +1990,27 @@ function animeTick()
         return
     end
     if animeDate() ~= today then animeRun() end
+end
+
+function cycleImg()
+    local idx = (hoverIdx and hoverIdx >= 0) and (hoverIdx + 1) or sel
+    if not idx or idx < 1 or not notes[idx] then
+        SKIN:Bang('!Log', '先悬停或选中一张便签', 'Notice'); return
+    end
+    local cur = notes[idx].img
+    local nxt = IMG_LIST[1]
+    if cur then
+        for k = 1, #IMG_LIST do
+            if IMG_LIST[k] == cur then
+                nxt = IMG_LIST[k + 1]
+                break
+            end
+        end
+    end
+    notes[idx].img = nxt
+    writeAll()
+    layout()
+    SKIN:Bang('!Log', '角标 -> ' .. tostring(nxt), 'Notice')
 end
 
 function drop(mx, my)
