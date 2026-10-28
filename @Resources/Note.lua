@@ -1203,7 +1203,7 @@ layout = function()
     setOpt('FixedTitle', 'Y', rnd(104 * scale) + rnd(12 * scale))
     setOpt('FixedTitle', 'FontSize', rnd(11 * scale))
     setOpt('FixedTitle', 'StringAlign', 'CenterCenter')
-    setOpt('FixedTitle', 'FontColor', '255,154,77,240')
+    setOpt('FixedTitle', 'FontColor', themeColors().accent .. ',240')
     show('FixedTitle')
     setOpt('FixedDivider', 'X', fx + fw + rnd(gapX / 2 - 1)); setOpt('FixedDivider', 'Y', fy)
     setOpt('FixedDivider', 'Shape', 'Rectangle 0,0,1,' .. fh .. ',0 | Fill Color 176,158,255,50 | StrokeWidth 0')
@@ -2917,7 +2917,7 @@ function favPulseTick()
     if FAVUI and FAVUI.dimTop then return end
     local a = math.floor(165 + 90 * math.sin(os.clock() * 2 * math.pi / 3.2))
     if a < 75 then a = 75 elseif a > 255 then a = 255 end
-    setOpt('FavBtn', 'FontColor', '255,154,77,' .. a)
+    setOpt('FavBtn', 'FontColor', themeColors().accent .. ',' .. a)
     SKIN:Bang('!UpdateMeter', 'FavBtn')
 end
 
@@ -3430,13 +3430,13 @@ function favDimTop(on)
     if on then
         setOpt('NewZoneText', 'FontColor', '235,238,245,90')
         setOpt('NewZoneHint', 'FontColor', '235,238,245,50')
-        setOpt('FavBtn', 'FontColor', '255,154,77,110')
+        setOpt('FavBtn', 'FontColor', themeColors().accent .. ',110')
         setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. (lastZone and lastZone.w or 178) .. ',' .. (lastZone and lastZone.h or 44) .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,12')
     else
         setOpt('NewZoneText', 'FontColor', '235,238,245,255')
         setOpt('NewZoneHint', 'FontColor', '235,238,245,110')
         setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. (lastZone and lastZone.w or 178) .. ',' .. (lastZone and lastZone.h or 44) .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
-        setOpt('FavBtn', 'FontColor', '255,154,77,255')
+        setOpt('FavBtn', 'FontColor', themeColors().accent .. ',255')
     end
     for _, n in ipairs({ 'NewZone', 'NewZoneText', 'NewZoneHint', 'FavBtn' }) do
         SKIN:Bang('!UpdateMeter', n)
