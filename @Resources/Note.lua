@@ -190,7 +190,9 @@ local function serialize()
     for d in pairs(autoskips) do body = body .. '#autoskip ' .. d .. '\r\n' end
     for i = 1, count do
         local n = notes[i]
-        body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. (n.pin and '\t1' or (n.img and '\t' or '')) .. (n.img and ('\t' .. n.img) or '') .. '\r\n'
+        body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. (n.pin and '\t1' or ((n.img or n.locked) and '\t' or ''))
+            .. (n.img and ('\t' .. n.img) or ((n.locked) and '\t' or ''))
+            .. (n.locked and '\t1' or '') .. '\r\n'
     end
     return body
 end
@@ -300,9 +302,17 @@ local function parse(data)
             if pg then gpage = tonumber(pg) end
         elseif l ~= '' then
             if #list < MAXN then
-                local d, n, t, s, th, pn, im = l:match('^(%d%d%d%d%-%d%d%-%d%d)\t([^\t]*)\t([^\t]*)\t?(%a*)\t?(%d*)\t?(%d*)\t?([%a%d_]*)$')
-                if d and n and t then
-                    list[#list + 1] = { date = d, name = n, text = t, src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user', theme = tonumber(th) or 1, pin = (pn == '1') or nil, img = (im ~= '' and im) or nil }
+                local f = {}
+                for part in (l .. '\t'):gmatch('([^\t]*)\t') do f[#f + 1] = part end
+                local d = f[1]
+                if d and d:match('^%d%d%d%d%-%d%d%-%d%d$') and f[2] then
+                    local s, th, pn, im, lk = f[4], f[5], f[6], f[7], f[8]
+                    list[#list + 1] = { date = d, name = f[2], text = f[3] or '',
+                        src = (s == 'ai' and 'ai') or (s == 'auto' and 'auto') or 'user',
+                        theme = tonumber(th) or 1,
+                        pin = (pn == '1') or nil,
+                        img = (im and im ~= '' and im) or nil,
+                        locked = (lk == '1') or nil }
                 else
                     local name, txt = l:match('^([^\t]*)\t(.*)$')
                     if version == 'v1' or not name then name, txt = nil, l end
@@ -832,6 +842,7 @@ function cycleTheme(i)
     if not i or not notes[i] then return end
     local cur = clamp(tonumber(notes[i].theme) or 1, 1, 4)
     notes[i].theme = (cur % 4) + 1
+    if notes[i].src == auto then notes[i].locked = true end
     writeAll()
     SKIN:Bang('!CommandMeasure', 'NoteLua', 'relayoutWeather()')
     placeSwatches(i - 1)
@@ -2059,7 +2070,7 @@ function pickImgStart(i)
     local f = io.open(uiStatePath(), 'wb')
     if f then
         f:write('#imgpick ' .. i .. '\r\n#name ' .. clean(notes[i].name)
-            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n#img ' .. (notes[i].img or '-') .. '\r\n#theme ' .. (tonumber(notes[i].theme) or 1) .. '\r\n')
+            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n#img ' .. (notes[i].img or '-') .. '\r\n#theme ' .. (tonumber(notes[i].theme) or 1) .. '\r\n#locked ' .. (notes[i].locked and '1' or '0') .. '\r\n')
         f:close()
     end
 
@@ -2075,6 +2086,13 @@ function imgPickTick()
     local i, val = tostring(d or ''):match('^(%d+)\t([^\r\n]*)')
     i = tonumber(i)
     if not i or not notes[i] then return end
+    notes[i].locked = true
+    if val == 'lock:0' then
+        notes[i].locked = nil
+        writeAll(); layout()
+        SKIN:Bang('!Log', '已解锁：' .. i, 'Notice')
+        return
+    end
     local k = val:match('^theme:(%d+)$')
     if k then
         notes[i].theme = clamp(tonumber(k) or 1, 1, 4)
@@ -2363,6 +2381,7 @@ function commit(v)
         notes[i].text = clean(v)
         if notes[i].text == '' then notes[i].text = '(空)' end
     end
+    if notes[i].src == auto then notes[i].locked = true end
     writeAll(); layout()
     if hoverIdx and hoverIdx >= 0 then ring() end
 end
@@ -2612,7 +2631,7 @@ function autoGen()
                     local dup = false
                     for _, c2 in ipairs(cands) do if c2.name == name then dup = true end end
                     for i2 = 1, count do
-                        if notes[i2].date == d and notes[i2].name == name and notes[i2].src == 'auto' then dup = true end
+                        if notes[i2].date == d and notes[i2].name == name then dup = true end
                     end
                     if not dup then cands[#cands + 1] = { name = name, text = text } end
                 end
@@ -2656,9 +2675,15 @@ end
 function clearAllSkips()
     -- 配置变更后：清抑制 + 清掉旧的自动便签，让它们按新规则重生成
     autoskips = {}
-    local keep = {}
+    local keep, lockedN = {}, 0
     for i = 1, count do
-        if notes[i].src ~= 'auto' then keep[#keep + 1] = notes[i] end
+        local n = notes[i]
+        if n.src ~= 'auto' then
+            keep[#keep + 1] = n
+        elseif n.locked then
+            keep[#keep + 1] = n
+            lockedN = lockedN + 1
+        end
     end
     notes = keep
     count = #notes
@@ -2667,6 +2692,9 @@ function clearAllSkips()
     writeAll()
     autoGen()
     layout()
+    if lockedN > 0 then
+        SKIN:Bang('!Log', '有 ' .. lockedN .. ' 条已锁定的自动便签，本次未更新', 'Notice')
+    end
 end
 
 function editCity()

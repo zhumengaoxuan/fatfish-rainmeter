@@ -17,7 +17,7 @@ local function writeFile(p, s)
 end
 
 local NAMES = {}
-local TARGET, CUR, CURTHEME = 0, nil, 1
+local TARGET, CUR, CURTHEME, LOCKED = 0, nil, 1, nil
 
 local SWATCH = { '176,158,255', '120,180,255', '110,220,190', '255,180,120' }
 
@@ -80,6 +80,9 @@ function boot()
     local name = d:match('#name%s+([^\r\n]+)') or ''
     local cur = d:match('#img%s+([^\r\n]+)')
     CUR = (cur and cur ~= '-' and cur) or nil
+    local lk = d:match('#locked%s+(%d+)')
+    LOCKED = (lk == '1')
+    if LOCKED then SKIN:Bang('!ShowMeter', 'LockBtn') else SKIN:Bang('!HideMeter', 'LockBtn') end
     local th = d:match('#theme%s+(%d+)')
     CURTHEME = tonumber(th) or 1
 
@@ -129,6 +132,15 @@ function pickTheme(k)
     renderSwatch()
     SKIN:Bang('!Redraw')
     log('result ' .. TARGET .. ' -> theme:' .. k)
+end
+
+function unlock()
+    if TARGET < 1 then return end
+    writeFile(resDir() .. 'imgpick_result.txt', TARGET .. '\tlock:0\r\n')
+    LOCKED = false
+    SKIN:Bang('!HideMeter', 'LockBtn')
+    SKIN:Bang('!Redraw')
+    log('unlock ' .. TARGET)
 end
 
 function rescan()
