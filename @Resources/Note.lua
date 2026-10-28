@@ -232,7 +232,37 @@ local function normalize()
         notes[b + 1] = k
     end
 end
+local function diskRowCount()
+    local cur = readAll()
+    if not cur then return 0 end
+    local n = 0
+    for line in cur:gmatch('[^\r\n]+') do
+        if line:sub(1, 1) ~= '#' and line ~= '' then n = n + 1 end
+    end
+    return n
+end
+
 local function writeAll()
+    -- 保险二：内存条数比磁盘少 3 条以上时拒绝写盘（防止解析异常导致批量丢失）
+    local disk = diskRowCount()
+    if disk > 0 and #notes < disk - 2 then
+        log('拒写：内存 ' .. #notes .. ' 条 < 磁盘 ' .. disk .. ' 条')
+        return false
+    end
+    -- 保险：内存里一条都没有、但磁盘上还有内容时，拒绝写盘（曾把用户便签清零）
+    if #notes == 0 then
+        local cur0 = readAll()
+        if cur0 then
+            local had = 0
+            for line in cur0:gmatch('[^\r\n]+') do
+                if line:sub(1, 1) ~= '#' and line ~= '' then had = had + 1 end
+            end
+            if had > 0 then
+                log('拒写：内存为空但磁盘有 ' .. had .. ' 条')
+                return false
+            end
+        end
+    end
     prune()
     count = #notes
     local cur = readAll()
@@ -1793,12 +1823,18 @@ end
 function animeTick()
     if not animeEnabled() then return end
     local today = todayStr()
-    -- 今天已经抓到过：直接导入（首次加载时也走这里）
-    if ANIME.imported ~= today and animeDate() == today then
-        ANIME.imported = today
-        ANIME.waiting = false
-        animeImport()
-        return
+    -- 今天抓到了但便签还没生成（或丢了）：导入
+    if animeDate() == today then
+        local has = false
+        for i = 1, count do
+            if notes[i].name == '今日番剧' and notes[i].date == today then has = true end
+        end
+        if not has then
+            ANIME.imported = today
+            ANIME.waiting = false
+            animeImport()
+            return
+        end
     end
     if ANIME.waiting then
         if animeDate() == today then
