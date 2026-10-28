@@ -2253,15 +2253,30 @@ end
 function aiTick()
     local d = readAI()
     if not d or d == '' then return end
-    local n = 0
+    count = #notes
+    local n, upd = 0, 0
     local cut = dateAdd(todayStr(), -4)
     for line in (d .. '\n'):gmatch('([^\r\n]*)\r?\n') do
         if line ~= '' and line:sub(1, 1) ~= '#' then
             local ds, nm, tx = line:match('^(%d%d%d%d%-%d%d%-%d%d)\t([^\t]*)\t(.*)$')
-            if ds and tx and ds >= cut and ds <= dateAdd(todayStr(), 1) and count < MAXN then
-                count = count + 1
-                notes[count] = { date = ds, name = (nm ~= '' and nm) or defaultName(), text = tx, src = 'ai' }
-                n = n + 1
+            if ds and tx and ds >= cut and ds <= dateAdd(todayStr(), 1) then
+                local target = (nm ~= '' and nm) or defaultName()
+                -- 同名同日视为同一条：更新正文，不新增
+                local hit = false
+                for i = 1, #notes do
+                    local nn = notes[i]
+                    if nn and nn.date == ds and nn.name == target then
+                        nn.text = tx
+                        hit = true
+                        upd = upd + 1
+                        break
+                    end
+                end
+                if not hit and count < MAXN then
+                    count = count + 1
+                    notes[count] = { date = ds, name = target, text = tx, src = 'ai' }
+                    n = n + 1
+                end
             end
         end
     end
@@ -2269,8 +2284,8 @@ function aiTick()
     local f = io.open(AIIN, 'wb')
     if not f then f = io.open(AI_ALT, 'wb') end
     if f then f:write(''); f:close() end
-    if n > 0 then
-        log('导入 AI 便签 ' .. n .. ' 条')
+    if n > 0 or upd > 0 then
+        log('导入 AI 便签 ' .. n .. ' 条，更新 ' .. upd .. ' 条')
         writeAll()
         layout()
     end
