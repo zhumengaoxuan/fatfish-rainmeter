@@ -1841,7 +1841,8 @@ function quickOpen(where)
     QUICK.target = (where == 'pin') and 'pin' or 'today'
     local margin, cardW, gapX, header = metrics()
     local w = rnd(baseW(cols) * scale) - margin * 2
-    local y = header
+    local bh = rnd(baseH(rows) * scale)
+    local y = math.floor((bh - rnd(36 * scale)) / 2)
     setOpt('QuickBox', 'W', w)
     setOpt('QuickBox', 'X', margin)
     setOpt('QuickBox', 'Y', y)
