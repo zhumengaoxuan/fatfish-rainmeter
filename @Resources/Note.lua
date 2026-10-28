@@ -3384,8 +3384,8 @@ function dropCopy(x, y)
     hide('DropHint')
     hideGhost()
     if not moved then
-        -- 右键单击（没拖动）：维持原来的「打开设置」
-        SKIN:Bang('!ActivateConfig', 'FatFishNote\\settings', 'settings.ini')
+        -- 右键单击（没拖动）：不做事，避免误开配置页
+        hideGhost()
         return
     end
     local src = notes[i]
