@@ -968,12 +968,12 @@ function autoScrollTick()
         else
             for i = 1, 2 do
                 local q = (FAVP.t + (i - 1) * 0.55) % 1.1 / 1.1
-                local rad = math.floor(4 + 16 * q)
+                local rad = math.floor(6 + 26 * q)
                 local fade = (1 - q)
                 local m = 'FavPulse' .. i
-                SKIN:Bang('!SetOption', m, 'Shape',  'Ellipse 20,20,' .. math.max(2, rad-4) .. ',' .. math.max(2, rad-4) .. ' | StrokeWidth ' .. math.max(1, math.floor(7*fade)) .. ' | Stroke Color 255,140,60,' .. math.floor(150*fade) .. ' | Fill Color 0,0,0,0')
-                SKIN:Bang('!SetOption', m, 'Shape2', 'Ellipse 20,20,' .. rad .. ',' .. rad .. ' | StrokeWidth ' .. math.max(1, math.floor(3*fade)) .. ' | Stroke Color 255,196,120,' .. math.floor(255*fade) .. ' | Fill Color 0,0,0,0')
-                SKIN:Bang('!SetOption', m, 'Shape3', 'Ellipse 20,20,' .. (rad+4) .. ',' .. (rad+4) .. ' | StrokeWidth ' .. math.max(1, math.floor(7*fade)) .. ' | Stroke Color 255,140,60,' .. math.floor(150*fade) .. ' | Fill Color 0,0,0,0')
+                SKIN:Bang('!SetOption', m, 'Shape',  'Ellipse 48,48,' .. math.max(3, rad-6) .. ',' .. math.max(3, rad-6) .. ' | StrokeWidth ' .. math.max(1, math.floor(10*fade)) .. ' | Stroke Color 255,140,60,' .. math.floor(150*fade) .. ' | Fill Color 0,0,0,0')
+                SKIN:Bang('!SetOption', m, 'Shape2', 'Ellipse 48,48,' .. rad .. ',' .. rad .. ' | StrokeWidth ' .. math.max(1, math.floor(5*fade)) .. ' | Stroke Color 255,196,120,' .. math.floor(255*fade) .. ' | Fill Color 0,0,0,0')
+                SKIN:Bang('!SetOption', m, 'Shape3', 'Ellipse 48,48,' .. (rad+6) .. ',' .. (rad+6) .. ' | StrokeWidth ' .. math.max(1, math.floor(10*fade)) .. ' | Stroke Color 255,140,60,' .. math.floor(150*fade) .. ' | Fill Color 0,0,0,0')
             end
             SKIN:Bang('!UpdateMeterGroup', 'FavWaves')
             SKIN:Bang('!Redraw')
@@ -1221,8 +1221,8 @@ layout = function()
     local mg = rnd(28 * scale)
     setOpt('TitleText', 'X', w / 2); setOpt('TitleText', 'Y', rnd(24 * scale)); setOpt('TitleText', 'FontSize', rnd(17 * scale)); setOpt('TitleText', 'StringAlign', 'CenterCenter')
     setOpt('FavBtn', 'X', rnd(w / 2 + 96 * scale)); setOpt('FavBtn', 'Y', rnd(24 * scale)); setOpt('FavBtn', 'FontSize', rnd(21 * scale))
-    setOpt('FavPulseMask', 'X', rnd(w / 2 + 96 * scale) - 20)
-    setOpt('FavPulseMask', 'Y', rnd(24 * scale) - 20)
+    setOpt('FavPulseMask', 'X', rnd(w / 2 + 96 * scale) - 48)
+    setOpt('FavPulseMask', 'Y', rnd(24 * scale) - 48)
     show('FavPulseMask')
 
 
