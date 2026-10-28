@@ -1071,7 +1071,7 @@ local function updateCard(i, c, r, fixed)
         .. ' | Fill Color 255,255,255,255 | StrokeWidth 0')
     setOpt('Head' .. m, 'X', x + 1); setOpt('Head' .. m, 'Y', y + 1)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
-    setOpt('Del' .. m, 'X', x + cardW - rnd(24 * scale)); setOpt('Del' .. m, 'Y', y + rnd(14 * scale))
+    setOpt('Del' .. m, 'X', x + cardW - rnd(18 * scale)); setOpt('Del' .. m, 'Y', y + rnd(18 * scale))
     -- 有插图时给正文加描边，保证压在图上也读得清
     if notes[i].img and not (clean(notes[i].text or '') == '' or clean(notes[i].text or '') == '(空)' or clean(notes[i].text or '') == '新便签') then
         setOpt('Text' .. m, 'StringEffect', 'Border')
