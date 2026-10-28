@@ -1109,6 +1109,7 @@ local function updateCard(i, c, r, fixed)
             setOpt('Img' .. m, 'H', bb)
             setOpt('Img' .. m, 'X', cardW - rnd(86 * scale) - 1)
             setOpt('Img' .. m, 'Y', cardH - rnd(90 * scale) - (hh + 1))
+            setOpt('Img' .. m, 'Container', '')
             setOpt('Img' .. m, 'Container', 'CardClip' .. m)
             setOpt('Img' .. m, 'ImageAlpha', 135)
         end
@@ -1124,7 +1125,9 @@ local function updateCard(i, c, r, fixed)
     local hasBody = not (bodyT == '' or bodyT == '(空)' or bodyT == '新便签')
     local imgPad = (notes[i].img and hasBody) and rnd(78 * scale) or 0
     setOpt('Text' .. m, 'W', math.max(20, cardW - rnd(28 * scale) - imgPad))
-    -- 容器原点变了之后，X/Y 必须在断言 Container 之后再算一次，否则会沿用旧原点
+    -- 容器原点变了之后必须「清空 → 再设」才会按新原点重算；只重设同值不生效
+    setOpt('Text' .. m, 'Container', '')
+    SKIN:Bang('!UpdateMeter', 'Text' .. m)
     setOpt('Text' .. m, 'Container', 'CardClip' .. m)
     setOpt('Name' .. m, 'Text', notes[i].name)
     setOpt('Head' .. m, 'LeftMouseUpAction', '[!CommandMeasure NoteLua "cycleTheme(' .. i .. ')"]')
@@ -1665,13 +1668,20 @@ function beginDrag(i, mname, mx, my)
     local ax, ay = 0, 0
     if m then ax = m:GetX(true) or 0; ay = m:GetY(true) or 0 end
     downX, downY = ax + mx, ay + my
-    local c, r = 1, 1
-    for cc = 1, cols do
-        for rr, idx in ipairs(colLists[cc] or {}) do
-            if idx == i then c, r = cc, rr end
+    -- 抓取原点必须用卡片自己的屏幕位置：常驻区卡片不在 colLists 格位里，
+    -- 用 slotPos 会把幽灵卡整体偏移一个格位
+    local cardM = SKIN:GetMeter('Card' .. (i - 1))
+    local x, y = 0, 0
+    if cardM then x = cardM:GetX(true) or 0; y = cardM:GetY(true) or 0 end
+    if x == 0 and y == 0 then
+        local c, r = 1, 1
+        for cc = 1, cols do
+            for rr, idx in ipairs(colLists[cc] or {}) do
+                if idx == i then c, r = cc, rr end
+            end
         end
+        x, y = slotPos(r, c)
     end
-    local x, y = slotPos(r, c)
     grabDX, grabDY = downX - x, downY - y
     dragIdx = i; dragTo = 1; sel = i; pending = true
     ghostX, ghostY = x, y
