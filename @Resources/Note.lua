@@ -632,9 +632,10 @@ local function buildColumns()
     end
     colLists = {}
     for c = 1, cols do colLists[c] = {} end
+    if count ~= #notes then count = #notes end
     for i = 1, count do
         local n = notes[i]
-        if not n.pin then
+        if n and not n.pin then
             local dc = dateDiff(baseDate, n.date or baseDate)
             if dc >= 0 and dc < cols then table.insert(colLists[dc + 1], i) end
         end
@@ -1562,6 +1563,8 @@ function beginNewDrag(mname, mx, my)
     dragIdx = -1
 end
 function beginDrag(i, mname, mx, my)
+    i = tonumber(i) or 0
+    if i < 1 or i > #notes then dragIdx = -1; return end
     hintFixed = false
     if boardLocked() then return end
     -- 防御：上一次收藏拖出没走完就关了面板，这里先清干净
@@ -1917,8 +1920,9 @@ function animeTick()
     -- 今天抓到了但便签还没生成（或丢了）：导入
     if animeDate() == today then
         local has = false
-        for i = 1, count do
-            if notes[i].name == '今日番剧' and notes[i].date == today then has = true end
+        for i = 1, #notes do
+            local nn = notes[i]
+            if nn and nn.name == '今日番剧' and nn.date == today then has = true end
         end
         if not has then
             ANIME.imported = today
@@ -1976,7 +1980,8 @@ function drop(mx, my)
     -- 拖进常驻区：提前拦下，避免落进下面的色板/时间列逻辑
     if mx and my and dragIdx and dragIdx >= 1 and fixedHit(mx, my) then
         local moved = table.remove(notes, dragIdx)
-        insertPinnedAt(hintFixedSlot or 1, moved)
+        count = #notes
+        if moved then insertPinnedAt(hintFixedSlot or 1, moved) end
         sel = nil
         dragIdx = -1; pending = false; dragCol = nil; dragTo = nil
         hide('DropHint'); hideGhost()
