@@ -1724,6 +1724,88 @@ function drag(x, y)
     SKIN:Bang('!Redraw')
 end
 
+-- ===== 番剧便签 =====
+local ANIME = { waiting = false, lastRun = 0, imported = '' }
+
+local function resPath(f) return SKIN:GetVariable('CURRENTPATH') .. '@Resources\\' .. f end
+local function animePath() return resPath('anime.txt') end
+
+local function readFileRaw(fp)
+    local f = io.open(fp, 'rb')
+    if not f then return nil end
+    local d = f:read('*a'); f:close(); return d
+end
+
+function animeEnabled()
+    local d = readFileRaw(resPath('autonote.txt'))
+    if not d then return false end
+    if d:find('anime%s*=%s*0') then return false end
+    return true
+end
+
+local function animeDate()
+    local d = readFileRaw(animePath())
+    if not d then return nil end
+    return d:match('#date%s*(%d%d%d%d%-%d%d%-%d%d)')
+end
+
+function animeRun()
+    SKIN:Bang('["powershell.exe" "-NoProfile" "-ExecutionPolicy" "Bypass" "-File" "#@#anime.ps1"]')
+    ANIME.waiting = true
+    ANIME.lastRun = os.time()
+end
+
+function animeImport()
+    local d = readFileRaw(animePath())
+    if not d then return end
+    local list = {}
+    for line in d:gmatch('[^\r\n]+') do
+        if not line:match('^#') then
+            local tt, title = line:match('^([^\t]+)\t(.+)$')
+            if tt and title then list[#list + 1] = tt .. ' ' .. title end
+        end
+    end
+    if #list == 0 then return end
+    local shown = {}
+    for i = 1, math.min(6, #list) do shown[#shown + 1] = list[i] end
+    local body = table.concat(shown, ' ｜ ')
+    if #list > 6 then body = body .. ' ｜ 等 ' .. #list .. ' 部' end
+
+    local today = todayStr()
+    for i = 1, count do
+        if notes[i].name == '今日番剧' and notes[i].date == today then
+            notes[i].text = body
+            writeAll(); layout()
+            return
+        end
+    end
+    notes[#notes + 1] = { date = today, name = '今日番剧', text = body, src = 'user' }
+    count = #notes
+    writeAll(); layout()
+end
+
+function animeTick()
+    if not animeEnabled() then return end
+    local today = todayStr()
+    -- 今天已经抓到过：直接导入（首次加载时也走这里）
+    if ANIME.imported ~= today and animeDate() == today then
+        ANIME.imported = today
+        ANIME.waiting = false
+        animeImport()
+        return
+    end
+    if ANIME.waiting then
+        if animeDate() == today then
+            ANIME.waiting = false
+            animeImport()
+        elseif os.time() - ANIME.lastRun > 60 then
+            ANIME.waiting = false           -- 超时放弃，等下次刷新
+        end
+        return
+    end
+    if animeDate() ~= today then animeRun() end
+end
+
 function drop(mx, my)
     local hadFixed = hintFixed
     hintFixed = false
