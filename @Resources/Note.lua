@@ -2059,7 +2059,7 @@ function pickImgStart(i)
     local f = io.open(uiStatePath(), 'wb')
     if f then
         f:write('#imgpick ' .. i .. '\r\n#name ' .. clean(notes[i].name)
-            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n#img ' .. (notes[i].img or '-') .. '\r\n')
+            .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n#img ' .. (notes[i].img or '-') .. '\r\n#theme ' .. (tonumber(notes[i].theme) or 1) .. '\r\n')
         f:close()
     end
 
@@ -2072,13 +2072,19 @@ function imgPickTick()
     if not f then return end
     local d = f:read('*a'); f:close()
     os.remove(pickResultPath())
-    local i, name = tostring(d or ''):match('^(%d+)\t([^\r\n]*)')
+    local i, val = tostring(d or ''):match('^(%d+)\t([^\r\n]*)')
     i = tonumber(i)
     if not i or not notes[i] then return end
-    notes[i].img = (name ~= '' and name ~= '-' and name) or nil
+    local k = val:match('^theme:(%d+)$')
+    if k then
+        notes[i].theme = clamp(tonumber(k) or 1, 1, 4)
+    else
+        local imgv = val:match('^img:(.+)$') or val
+        notes[i].img = (imgv ~= '' and imgv ~= '-' and imgv) or nil
+    end
     writeAll()
     layout()
-    SKIN:Bang('!Log', '贴图已设置：' .. i .. ' -> ' .. tostring(name), 'Notice')
+    SKIN:Bang('!Log', '面板已设置：' .. i .. ' -> ' .. tostring(val), 'Notice')
 end
 
 function cycleImg()
