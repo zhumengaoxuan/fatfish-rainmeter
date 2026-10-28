@@ -792,6 +792,11 @@ local function placeSwatches(m)
     return false
 end
 
+-- 色板米特（Sw_1..4）已经不存在了，藏/显之前先确认，避免日志刷 !HideMeter not found
+function swMetersExist()
+    return SKIN:GetMeter('Sw_1') ~= nil
+end
+
 function hoverCard(m)
     if boardLocked() then return end
     if favIsOpen() then return end
@@ -1071,7 +1076,7 @@ local function updateCard(i, c, r, fixed)
         .. ' | Fill Color 255,255,255,255 | StrokeWidth 0')
     setOpt('Head' .. m, 'X', x + 1); setOpt('Head' .. m, 'Y', y + 1)
     setOpt('Name' .. m, 'X', x + rnd(14 * scale)); setOpt('Name' .. m, 'Y', y + rnd(8 * scale))
-    setOpt('Del' .. m, 'X', x + cardW - rnd(18 * scale)); setOpt('Del' .. m, 'Y', y + rnd(18 * scale))
+    setOpt('Del' .. m, 'X', x + cardW - rnd(18 * scale)); setOpt('Del' .. m, 'Y', y + rnd(13 * scale))
     -- 有插图时给正文加描边，保证压在图上也读得清
     if notes[i].img and not (clean(notes[i].text or '') == '' or clean(notes[i].text or '') == '(空)' or clean(notes[i].text or '') == '新便签') then
         setOpt('Text' .. m, 'StringEffect', 'Border')
@@ -1671,7 +1676,7 @@ function beginDrag(i, mname, mx, my)
     dragIdx = i; dragTo = 1; sel = i; pending = true
     ghostX, ghostY = x, y
     -- 起拖瞬间清掉其它卡片留下的选中框与色板
-    for k = 1, 4 do hide('Sw_' .. k) end
+    if swMetersExist() then for k = 1, 4 do hide('Sw_' .. k) end end
     hide('SelRing')
     hoverIdx = -1
     setOpt('NewZoneText', 'Text', '拖入收藏')
@@ -2185,13 +2190,10 @@ function drop(mx, my)
 
     -- 拖进常驻区：提前拦下，避免落进下面的色板/时间列逻辑
     if mx and my and dragIdx and dragIdx >= 1 and fixedHit(mx, my) then
-        SKIN:Bang('!Log', 'PINDBG pre dragIdx=' .. tostring(dragIdx) .. ' count=' .. tostring(count) .. ' n=' .. tostring(#notes), 'Notice')
         local moved = table.remove(notes, dragIdx)
         count = #notes
-        SKIN:Bang('!Log', 'PINDBG removed moved=' .. tostring(moved ~= nil) .. ' count=' .. tostring(count) .. ' n=' .. tostring(#notes), 'Notice')
         if moved then
             insertPinnedAt(hintFixedSlot or 1, moved)
-            SKIN:Bang('!Log', 'PINDBG inserted slot=' .. tostring(hintFixedSlot) .. ' count=' .. tostring(count) .. ' n=' .. tostring(#notes), 'Notice')
         end
         sel = nil
         dragIdx = -1; pending = false; dragCol = nil; dragTo = nil
@@ -3003,7 +3005,7 @@ function favRender()
 
     if FAVUI.hover < 0 then
         hide('SelRing')
-        for k = 1, 4 do hide('Sw_' .. k) end
+        if swMetersExist() then for k = 1, 4 do hide('Sw_' .. k) end end
     end
     local shown = math.min(FAV_PER, math.max(0, #list - scroll))
     local pw = math.min(rnd(380 * scale), w - rnd(48 * scale))
@@ -3117,13 +3119,14 @@ function placeFavSwatches(i)
     local r = FAVUI.rect[i]
     if not r then return end
     local rad = math.max(3, rnd(7 * scale))
-    for k = 1, 4 do hide('Sw_' .. k) end
-    for k = 1, 4 do
+    if swMetersExist() then for k = 1, 4 do hide('Sw_' .. k) end end
+    if swMetersExist() then for k = 1, 4 do
         local n = 'Sw_' .. k
         setOpt(n, 'Shape', 'Ellipse ' .. rad .. ',' .. rad .. ',' .. rad .. ',' .. rad
             .. ' | Fill Color ' .. SWATCH_COLORS[k] .. ',255 | StrokeWidth 0')
         setOpt(n, 'X', r.x + r.w - rnd((24 + 18 * (5 - k)) * scale) - rad)
         setOpt(n, 'Y', r.y + rnd(10 * scale) - rad)
+    end
     end
 end
 
@@ -3140,7 +3143,7 @@ function hoverFav(i)
     local inset = rnd(2 * scale)
     -- 1) 先藏
     hide('SelRing')
-    for k = 1, 4 do hide('Sw_' .. k) end
+    if swMetersExist() then for k = 1, 4 do hide('Sw_' .. k) end end
     -- 2) 再改几何
     setOpt('SelRing', 'X', r.x - inset); setOpt('SelRing', 'Y', r.y - inset)
     setOpt('SelRing', 'Shape', 'Rectangle 0,0,' .. (r.w + inset * 2) .. ',' .. (r.h + inset * 2)
@@ -3150,13 +3153,13 @@ function hoverFav(i)
     -- 3) 批量更新一次，再统一显示
     SKIN:Bang('!UpdateMeter', '*')
     show('SelRing')
-    for k = 1, 4 do show('Sw_' .. k) end
+    if swMetersExist() then for k = 1, 4 do show('Sw_' .. k) end end
     SKIN:Bang('!Redraw')
 end
 
 function leaveFav()
     FAVUI.hover = -1
-    for k = 1, 4 do hide('Sw_' .. k) end
+    if swMetersExist() then for k = 1, 4 do hide('Sw_' .. k) end end
     hide('SelRing')
     SKIN:Bang('!Redraw')
 end
@@ -3636,7 +3639,7 @@ function favToggle()
         favTipsHidden(true)
         favDimTop(true)
         hoverIdx = -1
-        for k = 1, 4 do hide('Sw_' .. k) end
+        if swMetersExist() then for k = 1, 4 do hide('Sw_' .. k) end end
         hide('SelRing')
         favRender()
     else
