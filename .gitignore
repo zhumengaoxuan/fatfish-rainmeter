@@ -10,3 +10,7 @@ imgpick_result.txt
 @Resources/img/scan.log
 @Resources/anime.txt
 @Resources/anime.log
+
+*.broken
+*.pre-cleanup
+*.bak*
