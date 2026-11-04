@@ -231,3 +231,9 @@ FatFishNote 是一块常驻桌面的便签板。每一天是一列，便签是�
 3. 一张截图（含操作顺序）
 
 这样定位最快。
+
+---
+
+## 仓库说明
+
+本仓库保存 FatFishNote 的源码与版本记录。主皮肤入口是 FatFishNote.ini，数据与图片在 @Resources 目录，设置界面在 settings 目录。
