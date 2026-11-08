@@ -1,4 +1,9 @@
 --[[
+  坐标口径：本文件所有位置都是「左上角」；slotPos() 返回左上角，
+  鼠标→行号必须用 floor((y-header)/pitch)+1，不要 +0.5（那是"插到边界"的语义，
+  会让鼠标在本行下半部时判到下一行）。常驻区 fixedSlotAt() 返回的是「数组位」，
+  画预览框要减回 FIXUI.scroll。详见 经验总纲 §5.4。
+
 FatFishNote / Note.lua
 分区（自上而下）：
   1. 常量与工具        num/clamp/rnd/clean/dateAdd/dateDiff/readFile
@@ -79,6 +84,7 @@ local dragTo = 1
 local grabDX, grabDY = 0, 0
 local ghostX, ghostY = 0, 0
 local pending = false
+pressMX, pressMY = nil, nil   -- 按下时的卡片内坐标（全局：local 已到 200 上限）
 local downX, downY = 0, 0
 local pitch, cardH, rows = 0, 0, 1
 local scaling = false
@@ -610,13 +616,23 @@ function fixedLeave()
     SKIN:Bang('!Redraw')
 end
 
+-- 返回「数组位」（第几个 pin 便签，1..N+1），已经算上滚动偏移。
+-- 预览框要自己换算成屏幕行：Y = header + (slot - FIXUI.scroll - 1) * pitch
 local function fixedSlotAt(y)
     local _, _, _, header = metrics()
     local n = fixedCount()
-    local r = math.floor(((y or 0) - header) / pitch + 0.5) + 1
-    if r < 1 then r = 1 end
-    if r > n + 1 then r = n + 1 end
-    return r
+    -- 屏幕行：限定在可视区内（rows+1 是最后一行之后那一格）
+    local maxScreen = math.min(rows or 1, math.max(n, 1)) + 1
+    -- 用 floor 而不是 round：slotPos 返回的是卡片左上角，落点要算「鼠标落在哪一行」，
+    -- 之前 +0.5 是按行边界四舍五入，会让鼠标在该行下半部时被判到下一行。
+    local screenR = math.floor(((y or 0) - header) / pitch) + 1
+    if screenR < 1 then screenR = 1 end
+    if screenR > maxScreen then screenR = maxScreen end
+    -- 数组位 = 屏幕行 + 滚动偏移
+    local arrR = screenR + (FIXUI and FIXUI.scroll or 0)
+    if arrR > n + 1 then arrR = n + 1 end
+    if arrR < 1 then arrR = 1 end
+    return arrR
 end
 
 local function pinnedInsertIndex(k)
@@ -1686,6 +1702,14 @@ function beginDrag(i, mname, mx, my)
         end
         x, y = slotPos(r, c)
     end
+    -- 标题栏（含右上角 × 按钮）不参与拖拽：点标题是换色，点 × 是删除。
+    -- 之前这里没拦，点标题时 Head 没绑 MouseDown，事件穿透到 Card 触发 beginDrag，
+    -- 松手再走 drop() 就把便签和相邻的换了位置。
+    if my < rnd(30 * scale) then
+        dragIdx = -1
+        return
+    end
+    pressMX, pressMY = mx, my
     grabDX, grabDY = downX - x, downY - y
     dragIdx = i; dragTo = 1; sel = i; pending = true
     ghostX, ghostY = x, y
@@ -1791,7 +1815,6 @@ function drag(x, y)
         setOpt('GhostName', 'X', ghostX + rnd(80 * scale)); setOpt('GhostName', 'Y', ghostY + rnd(20 * scale)); setOpt('GhostName', 'StringAlign', 'CenterCenter'); setOpt('GhostName', 'FontSize', rnd(9 * scale))
         setOpt('GhostText', 'X', ghostX + rnd(14 * scale)); setOpt('GhostText', 'Y', ghostY + rnd(40 * scale))
         if fixedHit(x, y) then
-            newFixed = true
             hintValid = true
             dragCol, dragRow = nil, nil
             local margin, cardW, gapX, header = metrics()
@@ -1799,7 +1822,7 @@ function drag(x, y)
             newFixedSlot = fr
             setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
                 .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
-            setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
+            setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + math.min(math.max(0, (rows or 1) - 1), math.max(0, fr - (FIXUI and FIXUI.scroll or 0) - 1)) * pitch)
             show('DropHint')
             SKIN:Bang('!UpdateMeter', 'DropHint')
             SKIN:Bang('!Redraw')
@@ -1852,7 +1875,7 @@ function drag(x, y)
         hintFixedSlot = fr
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
             .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
-        setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
+        setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + math.min(math.max(0, (rows or 1) - 1), math.max(0, fr - (FIXUI and FIXUI.scroll or 0) - 1)) * pitch)
         show('DropHint')
         SKIN:Bang('!UpdateMeter', 'DropHint')
         SKIN:Bang('!Redraw')
@@ -2202,6 +2225,16 @@ function drop(mx, my)
     if not (dragIdx and dragIdx >= 1) then setOpt('NewZoneText', 'Text', '拖出新便签') end
     -- 点在卡片标题条右侧的四个色点上：切换配色，不进拖拽逻辑
     mx, my = tonumber(mx), tonumber(my)
+    -- 净位移不到 8px 视为点击：原路返回，不参与任何换位判定。
+    -- 之前点标题会换位，是因为 MouseDown 穿透到 Card 起了拖拽，
+    -- 松手时 fixedSlotAt() 把落点算成相邻格，insertPinnedAt 就把它插到了上一张前面。
+    if pressMX and pressMY and mx and my
+        and math.abs(mx - pressMX) < 8 and math.abs(my - pressMY) < 8 then
+        dragIdx = -1; pending = false; hintFixed = false; hintValid = false
+        hideGhost(); hide('DropHint')
+        setOpt('NewZoneText', 'Text', '拖出新便签')
+        return
+    end
     -- $ 是米特相对坐标；拖拽落点必须用屏幕坐标，否则常驻区/收藏区判定会错位
     if dragIdx and dragIdx >= 1 and lastDragX and lastDragY then
         mx, my = lastDragX, lastDragY
@@ -3332,7 +3365,7 @@ function dragFav(x, y)
         FAVUI.dropPinSlot = fr
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
             .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
-        setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + (fr - 1) * pitch)
+        setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + math.min(math.max(0, (rows or 1) - 1), math.max(0, fr - (FIXUI and FIXUI.scroll or 0) - 1)) * pitch)
         show('DropHint')
         setOpt('GhostCard', 'X', gx); setOpt('GhostCard', 'Y', gy)
         setOpt('GhostName', 'X', gx + rnd(14 * scale)); setOpt('GhostName', 'Y', gy + rnd(8 * scale))
