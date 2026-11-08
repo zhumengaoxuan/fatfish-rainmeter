@@ -254,10 +254,11 @@ local function diskRowCount()
     return n
 end
 
-local function writeAll()
+local function writeAll(allowShrink)
     -- 保险二：内存条数比磁盘少 3 条以上时拒绝写盘（防止解析异常导致批量丢失）
+    -- allowShrink：主动清理（clearAllSkips 删旧自动便签）时放开这次减少检查
     local disk = diskRowCount()
-    if disk > 0 and #notes < disk - 2 then
+    if disk > 0 and #notes < disk - 2 and not allowShrink then
         log('拒写：内存 ' .. #notes .. ' 条 < 磁盘 ' .. disk .. ' 条')
         return false
     end
@@ -2785,6 +2786,8 @@ end
 function clearAllSkips()
     -- 配置变更后：清抑制 + 清掉旧的自动便签，让它们按新规则重生成
     autoskips = {}
+    -- 先把清抑制的结果落盘：此刻不删便签，条数不变，不会触发拒写保护
+    writeAll()
     local keep, lockedN = {}, 0
     for i = 1, count do
         local n = notes[i]
@@ -2799,7 +2802,8 @@ function clearAllSkips()
     count = #notes
     sel = -1
     editIdx = -1
-    writeAll()
+    -- 删掉旧自动便签会让总数下降，这里允许一次（随后 autoGen 会补齐当天/次日）
+    writeAll(true)
     autoGen()
     layout()
     if lockedN > 0 then
