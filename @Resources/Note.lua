@@ -758,7 +758,7 @@ end
 local function hideCard(i)
     local m = i - 1
     setOpt('CardClip' .. m, 'Shape', 'Rectangle -100,-100,1,1,0 | Fill Color 255,255,255,255 | StrokeWidth 0')
-    for _, p in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text' }) do hide(p .. m) end
+    for _, p in ipairs({ 'Card', 'Head', 'Name', 'Del', 'Text', 'Img' }) do hide(p .. m) end
 
 end
 
