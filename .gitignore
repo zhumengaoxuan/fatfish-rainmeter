@@ -1,4 +1,4 @@
-﻿*.bak
+*.bak
 *.tmp
 *.log
 *.rmskin
@@ -14,3 +14,8 @@ imgpick_result.txt
 *.broken
 *.pre-cleanup
 *.bak*
+@Resources/notes.txt
+@Resources/autonote.txt
+@Resources/favorites.txt
+@Resources/favorites_deleted.txt
+@Resources/notes.txt.broken*

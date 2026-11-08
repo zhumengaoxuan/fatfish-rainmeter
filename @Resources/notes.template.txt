@@ -1,0 +1,4 @@
+#FatFishNote v3
+#grid cols=2 rows=2 scale=1.00
+#theme 1
+#page 0

@@ -1,0 +1,10 @@
+#modes interval,monthly
+#mode interval
+#cycle 2
+#base 2026-01-01
+#interval 7
+#tname 
+#ttext 
+#dday 1
+#dname 
+#dtext 
