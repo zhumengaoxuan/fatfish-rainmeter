@@ -1703,9 +1703,15 @@ function beginDrag(i, mname, mx, my)
         x, y = slotPos(r, c)
     end
     -- 标题栏（含右上角 × 按钮）不参与拖拽：点标题是换色，点 × 是删除。
-    -- 之前这里没拦，点标题时 Head 没绑 MouseDown，事件穿透到 Card 触发 beginDrag，
-    -- 松手再走 drop() 就把便签和相邻的换了位置。
-    if my < rnd(30 * scale) then
+    -- my 是「触发这次按下的那个 Meter」内的坐标（Card / Text / Name 都会调到这里），
+    -- 必须先换算成相对卡片的 y，否则从正文或标题按下时 my 会从 0 开始、被误判成标题栏。
+    local relY = my
+    local cardM0 = SKIN:GetMeter('Card' .. (i - 1))
+    local srcM0 = SKIN:GetMeter(tostring(mname))
+    if cardM0 and srcM0 and tostring(mname) ~= ('Card' .. (i - 1)) then
+        relY = (srcM0:GetY(false) or 0) - (cardM0:GetY(false) or 0) + my
+    end
+    if relY < rnd(30 * scale) then
         dragIdx = -1
         return
     end
@@ -2349,7 +2355,17 @@ function drop(mx, my)
     elseif wasDragging and hintValid and dragCol and dragCol >= 1 then
         local list = colLists[dragCol] or {}
         local pos = dragTo
-        if list[pos] and list[pos] ~= from then
+        -- 先看 from 自己在哪一格：落点等于起点就什么都不做。
+        -- 否则 list[pos] == from 会掉进下面的 else 被「移到末尾」，表现成和下面那张换位。
+        local fc, fr = nil, nil
+        for cc2 = 1, cols do
+            for rr2, idx2 in ipairs(colLists[cc2] or {}) do
+                if idx2 == from then fc, fr = cc2, rr2 end
+            end
+        end
+        if fc and dragCol == fc and pos == fr then
+            -- 原地：不动
+        elseif list[pos] and list[pos] ~= from then
             -- 交换两张的内容（含日期与来源）
             local a, b = notes[from], notes[list[pos]]
             notes[from], notes[list[pos]] = b, a
