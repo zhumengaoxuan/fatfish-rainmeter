@@ -41,10 +41,23 @@ function loadList()
 end
 
 local function boxShape(k, active)
+    local accent = SWATCH[CURTHEME] or SWATCH[1]
     local fill = active and '255,255,255,40' or '255,255,255,12'
-    local stroke = active and '210,196,255,255' or '150,140,220,60'
+    local stroke = active and (accent .. ',255') or (accent .. ',60')
     return 'Rectangle 0,0,64,64,8 | Fill Color ' .. fill ..
         ' | StrokeWidth ' .. (active and 2 or 1) .. ' | Stroke Color ' .. stroke
+end
+
+local function applyAccent()
+    local a = SWATCH[CURTHEME] or SWATCH[1]
+    local fg = SKIN:GetVariable('FaceSolid') or '24,32,58,250'
+    SKIN:Bang('!SetOption', 'PickBG', 'Shape', 'Rectangle 0,0,300,340,12 | Fill Color ' .. fg .. ' | StrokeWidth 1 | Stroke Color ' .. a .. ',80')
+    SKIN:Bang('!SetOption', 'PickTitle', 'FontColor', a .. ',255')
+    SKIN:Bang('!SetOption', 'SwLabel', 'FontColor', a .. ',220')
+    SKIN:Bang('!UpdateMeter', 'PickBG')
+    SKIN:Bang('!UpdateMeter', 'PickTitle')
+    SKIN:Bang('!UpdateMeter', 'SwLabel')
+    SKIN:Bang('!Redraw')
 end
 
 function renderSwatch()
@@ -98,6 +111,7 @@ function boot()
 
     loadList()
     loadSwatches(d)
+    applyAccent()
     SKIN:Bang('!SetOption', 'PickTitle', 'Text', '¸ø¡¸' .. (name ~= '' and name or '±ãÇ© ' .. i) .. '¡¹ÉèÖÃ')
     SKIN:Bang('!UpdateMeter', 'PickTitle')
     render()
@@ -137,6 +151,7 @@ function pickTheme(k)
     writeFile(resDir() .. 'imgpick_result.txt', TARGET .. '\ttheme:' .. k .. '\r\n')
     CURTHEME = k
     renderSwatch()
+    render()
     SKIN:Bang('!Redraw')
     log('result ' .. TARGET .. ' -> theme:' .. k)
 end

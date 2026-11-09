@@ -249,6 +249,7 @@ open(p, 'r', encoding='gbk', errors='ignore')  # lua / txt
 - **`Note.lua` 的 `C` 不能用 `local`**：文件级 local 已到 200 上限，再加就整份编译失败
 - **`SKIN:GetVariable` 不能取址**：写成 `local g = SKIN:GetVariable` 会报 `function arguments expected`，冒号方法只能立即调用
 - 保留不动的：`THEMES` 四套主题色（卡片随主题切换）、`SWATCH_COLORS` / `SWCOL`（主题色选择器）、`RightClip` 遮罩色 `72,87,150`（是乘色，不是按钮色）
+- **贴图选择器跟随便签主题**：`imgpicker` 的 `boot()` 从 `ui_state.txt` 的 `#theme` 拿到被设置便签的主题，`applyAccent()` 用 `!SetOption` 把面板描边 / 标题 / 「配色」标签换成 `SWATCH[CURTHEME]`，缩略图边框由 `boxShape()` 直接读该色；`pickTheme()` 切完主题再调 `render()` 重画。面板背景保持深色不跟（全底染色会盖过缩略图）
 
 ### 4.4 容器与渐变
 
@@ -719,6 +720,7 @@ esetScrollFor(i) → writeAll() → layout()
 | 2026-10-26（下午） | 代码清理：删掉 34 个零引用函数（调试类 dump*/diag*/wincheck/previewLong、废弃的 favRight/menuTheme*/menuCity1-6/swShow/swHideNow/select/todayTime/charLen/fitChars）、合并 2 处重复定义、加文件头区块说明。Note.lua 2508 → 2367 行；视觉回归 0 命中格子。**保留清单**：autoDump/autoWrite/reloadAuto/reloadNotes/clearAllSkips/favCount 等命令行接口 |
 | 2026-11-09 | 面板配色变量化：三处皮肤背景统一到 `theme-colors.inc`（见 §4.3.1）；修 `Settings.lua` 把描边渐变当填充的旧写法 |
 | 2026-11-09（下午） | 语义色变量化：文字/强调/按钮/白线/描边全部进 `theme-colors.inc`；`Note.lua` 加全局 `C` + `loadPalette()`，`Settings.lua` 加 `PAL`；坑：冒号方法不能取址、`C` 表定义被批量替换污染 |
+| 2026-11-09（下午） | 贴图选择器强调色跟随便签主题：`applyAccent()` + `boxShape()` 读 `SWATCH[CURTHEME]`，切换主题后 `render()` 重画 |
 
 ---
 
