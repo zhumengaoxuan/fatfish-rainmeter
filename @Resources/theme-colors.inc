@@ -15,3 +15,5 @@ CardBg=28,38,70
 CardBg2=44,49,74
 LineWhite=255,255,255
 PickerStroke=150,140,220
+PickerBg=24,32,58,250
+PickerHead=150,140,220

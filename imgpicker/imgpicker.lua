@@ -50,11 +50,17 @@ end
 
 local function applyAccent()
     local a = SWATCH[CURTHEME] or SWATCH[1]
-    local fg = SKIN:GetVariable('FaceSolid') or '24,32,58,250'
-    SKIN:Bang('!SetOption', 'PickBG', 'Shape', 'Rectangle 0,0,300,340,12 | Fill Color ' .. fg .. ' | StrokeWidth 1 | Stroke Color ' .. a .. ',80')
-    SKIN:Bang('!SetOption', 'PickTitle', 'FontColor', a .. ',255')
-    SKIN:Bang('!SetOption', 'SwLabel', 'FontColor', a .. ',220')
+    local r, g, b2 = a:match('(%d+)%s*,%s*(%d+)%s*,%s*(%d+)')
+    r = math.floor((tonumber(r) or 24) * 0.32)
+    g = math.floor((tonumber(g) or 32) * 0.32)
+    b2 = math.floor((tonumber(b2) or 58) * 0.32)
+    local bg = r .. ',' .. g .. ',' .. b2 .. ',245'
+    SKIN:Bang('!SetOption', 'PickBG', 'Shape', 'Rectangle 0,0,300,340,12 | Fill Color ' .. bg .. ' | StrokeWidth 1 | Stroke Color ' .. a .. ',90')
+    SKIN:Bang('!SetOption', 'TopFrame', 'Shape', 'Rectangle 2,2,296,52,10 | Fill Color ' .. a .. ',60 | StrokeWidth 0')
+    SKIN:Bang('!SetOption', 'PickTitle', 'FontColor', '238,234,252,255')
+    SKIN:Bang('!SetOption', 'SwLabel', 'FontColor', '190,184,220,220')
     SKIN:Bang('!UpdateMeter', 'PickBG')
+    SKIN:Bang('!UpdateMeter', 'TopFrame')
     SKIN:Bang('!UpdateMeter', 'PickTitle')
     SKIN:Bang('!UpdateMeter', 'SwLabel')
     SKIN:Bang('!Redraw')
@@ -152,6 +158,7 @@ function pickTheme(k)
     CURTHEME = k
     renderSwatch()
     render()
+    applyAccent()
     SKIN:Bang('!Redraw')
     log('result ' .. TARGET .. ' -> theme:' .. k)
 end
