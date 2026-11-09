@@ -249,6 +249,7 @@ open(p, 'r', encoding='gbk', errors='ignore')  # lua / txt
 - **`Note.lua` 的 `C` 不能用 `local`**：文件级 local 已到 200 上限，再加就整份编译失败
 - **`SKIN:GetVariable` 不能取址**：写成 `local g = SKIN:GetVariable` 会报 `function arguments expected`，冒号方法只能立即调用
 - 保留不动的：`THEMES` 四套主题色（卡片随主题切换）、`SWATCH_COLORS` / `SWCOL`（主题色选择器）、`RightClip` 遮罩色 `72,87,150`（是乘色，不是按钮色）
+- **卡片组成与颜色来源**（`cardShape()`）：`Card` 背景用 `th.card`、`Head` 标题头用 `th.accent,24`、`Name` 用 `th.accent,235`、正文 `Text` 用 `th.head`、`CardClip` 只是白色裁剪遮罩（容器不绘制）、选中环 `SelRing` 用 `th.accent`。**`Head` 曾经误用固定 `C.accent`（紫）**，导致青/玫主题的卡片顶上多一条紫色，和卡片背景打架——2026-11-09 改为 `th.accent` 后卡片整体才跟主题一致
 - **贴图选择器跟随便签主题**：`imgpicker` 的 `boot()` 从 `ui_state.txt` 的 `#theme` 拿到被设置便签的主题；`applyAccent()` 把面板背景换成该主题色的暗化版（RGB×0.32），描边用主题色，顶部加一条 `[TopFrame]` 标题头色带（主题色 alpha 60）把色点与背景隔开；标题和「配色」文字保持固定近白、不跟随。`pickTheme()` 切完主题调 `render()` + `applyAccent()` 实时重画。缩略图边框由 `boxShape()` 读主题色。
 
 ### 4.4 容器与渐变
@@ -722,6 +723,7 @@ esetScrollFor(i) → writeAll() → layout()
 | 2026-11-09（下午） | 语义色变量化：文字/强调/按钮/白线/描边全部进 `theme-colors.inc`；`Note.lua` 加全局 `C` + `loadPalette()`，`Settings.lua` 加 `PAL`；坑：冒号方法不能取址、`C` 表定义被批量替换污染 |
 | 2026-11-09（下午） | 贴图选择器强调色跟随便签主题：`applyAccent()` + `boxShape()` 读 `SWATCH[CURTHEME]`，切换主题后 `render()` 重画 |
 | 2026-11-09（下午） | 贴图选择器改版：背景换成主题色暗化版、顶部加 `[TopFrame]` 标题头色带、标题/「配色」文字恢复固定白；`pickTheme()` 切主题时同步 `applyAccent()` |
+| 2026-11-09（下午） | 修卡片标题头颜色：`Head` 从固定 `C.accent` 改为 `th.accent`，青/玫主题卡片不再顶一条紫 |
 
 ---
 
