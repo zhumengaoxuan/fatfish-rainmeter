@@ -165,7 +165,7 @@ function layoutBottom(rowBottom)
     local h = rowBottom + 86
     SKIN:Bang('!SetVariable', 'panelH', tostring(h))
     SKIN:Bang('!SetOption', 'PanelBg', 'H', tostring(h))
-    SKIN:Bang('!SetOption', 'Panel', 'Shape', 'Rectangle 0,0,420,' .. h .. ',14 | Fill LinearGradient 1 | StrokeWidth 1 | Stroke Color 176,158,255,45')
+    SKIN:Bang('!SetOption', 'Panel', 'Shape', 'Rectangle 0,0,420,' .. h .. ',14 | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local centers = { SaveAll = 0.18, OpenNote = 0.5, Close = 0.82 }
     for m, f in pairs(centers) do
         SKIN:Bang('!SetOption', m, 'X', tostring(math.floor(420 * f)))
