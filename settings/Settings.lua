@@ -6,6 +6,15 @@ local function resolvePaths()
     AUTO = d .. 'autonote.txt'
 end
 pcall(resolvePaths)
+local PAL = { text='235,238,245', textDim='220,215,240', accent='176,158,255', accentBlue='120,220,255', buttonBg='72,87,150', white='255,255,255' }
+local function loadPal()
+    PAL.text = SKIN:GetVariable('TextMain') or PAL.text
+    PAL.textDim = SKIN:GetVariable('TextDim') or PAL.textDim
+    PAL.accent = SKIN:GetVariable('Accent') or PAL.accent
+    PAL.accentBlue = SKIN:GetVariable('AccentBlue') or PAL.accentBlue
+    PAL.buttonBg = SKIN:GetVariable('ButtonBg') or PAL.buttonBg
+    PAL.white = SKIN:GetVariable('LineWhite') or PAL.white
+end
 local PRESETS = { { '北京', 39.9042, 116.4074 }, { '大同', 40.0902, 113.3001 }, { '太原', 37.8706, 112.5489 }, { '上海', 31.2304, 121.4737 }, { '广州', 23.1291, 113.2644 }, { '成都', 30.5728, 104.0668 } }
 local mode = 'cycle'
 local MODE_KEYS = { 'cycle', 'interval', 'date', 'monthly' }
@@ -73,6 +82,7 @@ local function showTable(on)
 end
 
 function boot()
+    loadPal()
     pcall(resolvePaths)
     local c = lines(rd(CITY) or '')
     local name = '大同'
@@ -200,8 +210,8 @@ function pixelCheck()
     end
 end
 local function setBtn(n, on)
-    SKIN:Bang('!SetOption', n, 'SolidColor', on and '176,158,255,255' or '72,87,150,255')
-    SKIN:Bang('!SetOption', n, 'FontColor', on and '36,30,62,255' or '220,215,240,255')
+    SKIN:Bang('!SetOption', n, 'SolidColor', on and '' .. PAL.accent .. ',255' or '' .. PAL.buttonBg .. ',255')
+    SKIN:Bang('!SetOption', n, 'FontColor', on and '36,30,62,255' or '' .. PAL.textDim .. ',255')
 end
 
 
@@ -210,11 +220,11 @@ local function paintButtons()
                    { 'ModeDate', 'date' }, { 'ModeMonth', 'monthly' } }
     for _, k in ipairs(btns) do
         local on = modeOn[k[2]]
-        local fill = on and '176,158,255,255' or '72,87,150,255'
-        local stroke = on and '176,158,255,120' or '176,158,255,40'
+        local fill = on and '' .. PAL.accent .. ',255' or '' .. PAL.buttonBg .. ',255'
+        local stroke = on and '' .. PAL.accent .. ',120' or '' .. PAL.accent .. ',40'
         SKIN:Bang('!SetOption', k[1] .. 'Bg', 'Shape',
             'Rectangle 0,0,76,24,8 | Fill Color ' .. fill .. ' | StrokeWidth 1 | Stroke Color ' .. stroke)
-        SKIN:Bang('!SetOption', k[1], 'FontColor', on and '30,26,54,255' or '176,158,255,235')
+        SKIN:Bang('!SetOption', k[1], 'FontColor', on and '30,26,54,255' or '' .. PAL.accent .. ',235')
     end
 end
 
@@ -250,7 +260,7 @@ local function applyPanel()
         SKIN:Bang('!SetOption', 'TNameInput', 'Y', rows.TName)
         SKIN:Bang('!SetOption', 'TTextLabel', 'Y', rows.TText)
         SKIN:Bang('!SetOption', 'TTextBg', 'Y', rows.TText)
-        SKIN:Bang('!SetOption', 'TTextBg', 'Shape', 'Rectangle 0,0,180,24,8 | Fill Color 72,87,150,255 | StrokeWidth 1 | Stroke Color 176,158,255,60')
+        SKIN:Bang('!SetOption', 'TTextBg', 'Shape', 'Rectangle 0,0,180,24,8 | Fill Color ' .. PAL.buttonBg .. ',255 | StrokeWidth 1 | Stroke Color ' .. PAL.accent .. ',60')
         SKIN:Bang('!SetOption', 'TTextInput', 'Y', rows.TText)
         SKIN:Bang('!SetOption', 'TTextInput', 'W', 180)
     else
@@ -263,7 +273,7 @@ local function applyPanel()
         SKIN:Bang('!SetOption', 'TNameInput', 'Y', rows.TName)
         SKIN:Bang('!SetOption', 'TTextLabel', 'Y', rows.TText)
         SKIN:Bang('!SetOption', 'TTextBg', 'Y', rows.TText)
-        SKIN:Bang('!SetOption', 'TTextBg', 'Shape', 'Rectangle 0,0,286,24,8 | Fill Color 72,87,150,255 | StrokeWidth 1 | Stroke Color 176,158,255,60')
+        SKIN:Bang('!SetOption', 'TTextBg', 'Shape', 'Rectangle 0,0,286,24,8 | Fill Color ' .. PAL.buttonBg .. ',255 | StrokeWidth 1 | Stroke Color ' .. PAL.accent .. ',60')
         SKIN:Bang('!SetOption', 'TTextInput', 'Y', rows.TText)
         SKIN:Bang('!SetOption', 'TTextInput', 'W', 286)
     end

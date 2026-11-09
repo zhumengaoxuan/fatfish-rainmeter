@@ -226,6 +226,30 @@ open(p, 'r', encoding='gbk', errors='ignore')  # lua / txt
 - 修法二选一：`Formula=(Round(...))` 保持整数；或由 Lua 每 tick `setOpt` 设颜色（本项目现在用后者，因为面板打开时要暂停呼吸 —— 用节变量会被下一次 update 顶回去）。
 - 如果度量内部引用变量，度量自身也要 `DynamicVariables=1`。
 
+### 4.3.1 面板配色变量化（2026-11-09）
+
+三处皮肤共享同一套面板色，集中在 `@Resources\theme-colors.inc`：
+
+- 变量：`FaceGrad`（背景渐变）、`FaceStroke`（描边渐变）、`FaceSolid` / `FaceSolidStroke`（纯色版，给贴图选择器）
+- 引用方式：主皮肤 `@Include=#@#theme-colors.inc`；子目录皮肤 `@Include=..\@Resources\theme-colors.inc`（`#@#` 在子目录会指向不存在的 `settings\@Resources`）
+- **inc 文件必须带 `[Variables]` 段头**。缺了它变量不会加载，Rainmeter 只报 `Shape: LinearGradient has invalid parameters: #FaceGrad#`，不会提示 include 失败——很容易误判成渐变写法不支持变量
+- 主皮肤和配置页的 `[Panel]`：`1=#FaceStroke#`、`2=#FaceGrad#`；贴图选择器：`Fill Color #FaceSolid#`
+- **配置页的 Panel 几何由 `Settings.lua` 的 `layoutBottom()` 动态覆盖**，必须同步改成 `Fill LinearGradient 2 | Stroke LinearGradient 1`。原来写的是 `Fill LinearGradient 1`（把描边渐变当填充），会让整页变浅色，和主面板对不上
+
+当前值（改这里，三处一起变）：
+
+- `FaceGrad = 180 | 24,32,58,188;0 | 38,54,98,196;0.55 | 28,72,116,196;1`
+- `FaceStroke = 180 | 96,150,230,60;0 | 70,120,210,40;0.55 | 90,200,240,60;1`
+- `FaceSolid = 24,32,58,250`；`FaceSolidStroke = 96,150,230,60`
+
+其他显示元素也已变量化（同日完成）：
+
+- 语义色：`TextMain=235,238,245`、`TextDim=220,215,240`、`Accent=176,158,255`、`AccentBlue=120,220,255`、`ButtonBg=72,87,150`、`CardBg=28,38,70`、`CardBg2=44,49,74`、`LineWhite=255,255,255`、`PickerStroke=150,140,220`
+- ini 里直接用 `#TextMain#` 这类引用；`Note.lua` 用全局表 `C`（`boot()` 里 `loadPalette()` 从 `SKIN:GetVariable` 读），`Settings.lua` 用 local 表 `PAL`
+- **`Note.lua` 的 `C` 不能用 `local`**：文件级 local 已到 200 上限，再加就整份编译失败
+- **`SKIN:GetVariable` 不能取址**：写成 `local g = SKIN:GetVariable` 会报 `function arguments expected`，冒号方法只能立即调用
+- 保留不动的：`THEMES` 四套主题色（卡片随主题切换）、`SWATCH_COLORS` / `SWCOL`（主题色选择器）、`RightClip` 遮罩色 `72,87,150`（是乘色，不是按钮色）
+
 ### 4.4 容器与渐变
 
 - 容器子米特坐标**相对容器**，且必须显式写 `Container=<名字>`。
@@ -693,6 +717,8 @@ esetScrollFor(i) → writeAll() → layout()
 | 2026-10-26（下午） | 修：关闭收藏面板时同步隐藏 `FavBar/FavBarThumb`（favHideAll 漏项） |
 | 2026-10-26（下午） | 收藏库改为滚动：`FAVUI.scroll` + `FavBar/FavBarThumb` 进度条 + 滚轮绑定 16 个节点；新增 `favReload()` 供外部改完文件后重载 |
 | 2026-10-26（下午） | 代码清理：删掉 34 个零引用函数（调试类 dump*/diag*/wincheck/previewLong、废弃的 favRight/menuTheme*/menuCity1-6/swShow/swHideNow/select/todayTime/charLen/fitChars）、合并 2 处重复定义、加文件头区块说明。Note.lua 2508 → 2367 行；视觉回归 0 命中格子。**保留清单**：autoDump/autoWrite/reloadAuto/reloadNotes/clearAllSkips/favCount 等命令行接口 |
+| 2026-11-09 | 面板配色变量化：三处皮肤背景统一到 `theme-colors.inc`（见 §4.3.1）；修 `Settings.lua` 把描边渐变当填充的旧写法 |
+| 2026-11-09（下午） | 语义色变量化：文字/强调/按钮/白线/描边全部进 `theme-colors.inc`；`Note.lua` 加全局 `C` + `loadPalette()`，`Settings.lua` 加 `PAL`；坑：冒号方法不能取址、`C` 表定义被批量替换污染 |
 
 ---
 

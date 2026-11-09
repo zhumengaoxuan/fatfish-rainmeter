@@ -69,6 +69,22 @@ local THEMES = {
       card = '52,34,50,240', stroke = '255,140,176,50', accent = '255,140,176', head = '250,232,238,204' },
 }
 
+-- 统一配色（值来自 @Resources\theme-colors.inc，boot 时载入）
+C = {
+    text = '235,238,245', textDim = '220,215,240', accent = '176,158,255',
+    accentBlue = '120,220,255', buttonBg = '72,87,150',
+    cardBg = '28,38,70', cardBg2 = '44,49,74', white = '255,255,255',
+}
+function loadPalette()
+    C.text = SKIN:GetVariable('TextMain') or C.text
+    C.textDim = SKIN:GetVariable('TextDim') or C.textDim
+    C.accent = SKIN:GetVariable('Accent') or C.accent
+    C.accentBlue = SKIN:GetVariable('AccentBlue') or C.accentBlue
+    C.buttonBg = SKIN:GetVariable('ButtonBg') or C.buttonBg
+    C.cardBg = SKIN:GetVariable('CardBg') or C.cardBg
+    C.cardBg2 = SKIN:GetVariable('CardBg2') or C.cardBg2
+    C.white = SKIN:GetVariable('LineWhite') or C.white
+end
 local notes = {}
 local count = 0
 local cols = 2
@@ -508,7 +524,7 @@ local function fixedPaint()
     local span = fh - thumbH
     local ty = header + (maxS > 0 and rnd(span * FIXUI.scroll / maxS) or 0)
     setOpt('FixedBarThumb', 'X', bx); setOpt('FixedBarThumb', 'Y', ty)
-    setOpt('FixedBarThumb', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color 176,158,255,190 | StrokeWidth 0')
+    setOpt('FixedBarThumb', 'Shape', 'Rectangle 0,0,' .. bw .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color ' .. C.accent .. ',190 | StrokeWidth 0')
     show('FixedBarThumb')
     FIXUI.thumbY, FIXUI.thumbH = ty, thumbH
     FIXUI.trackY, FIXUI.trackH = header, fh
@@ -788,11 +804,11 @@ local function cardShape(m, isAI, th)
     th = th or themeColors()
     local rr = rnd(12 * scale)
     local fill, stroke = th.card, th.stroke
-    if isAI then fill, stroke = '26,58,74,240', '120,220,255,95' end
+    if isAI then fill, stroke = '26,58,74,240', '' .. C.accentBlue .. ',95' end
     setOpt('Card' .. m, 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rr .. ' | Fill Color ' .. fill .. ' | StrokeWidth ' .. math.max(1, rnd(1 * scale)) .. ' | Stroke Color ' .. stroke)
-    setOpt('Head' .. m, 'Shape', 'Rectangle 0,0,' .. (cardW - 2) .. ',' .. rnd(26 * scale) .. ',' .. rnd(10 * scale) .. ' | Fill Color 176,158,255,24')
+    setOpt('Head' .. m, 'Shape', 'Rectangle 0,0,' .. (cardW - 2) .. ',' .. rnd(26 * scale) .. ',' .. rnd(10 * scale) .. ' | Fill Color ' .. C.accent .. ',24')
     setOpt('Name' .. m, 'FontSize', rnd(8 * scale))
-    setOpt('Name' .. m, 'FontColor', isAI and '120,220,255,255' or (th.accent .. ',235'))
+    setOpt('Name' .. m, 'FontColor', isAI and '' .. C.accentBlue .. ',255' or (th.accent .. ',235'))
     setOpt('Del' .. m, 'FontSize', rnd(12 * scale))
     setOpt('Text' .. m, 'FontSize', rnd(10 * scale))
     setOpt('Text' .. m, 'FontWeight', 600)
@@ -1189,7 +1205,7 @@ local function applyTheme()
     setOpt('AddBtn', 'Shape', 'Ellipse ' .. rnd(17 * scale) .. ',' .. rnd(17 * scale) .. ',' .. rnd(17 * scale) .. ' | Fill Color ' .. th.accent .. ',45 | StrokeWidth 1 | Stroke Color ' .. th.accent .. ',150')
     setOpt('Handle', 'Shape', 'Ellipse ' .. rnd(8 * scale) .. ',' .. rnd(8 * scale) .. ',' .. rnd(8 * scale) .. ' | Fill Color 255,255,255,90 | StrokeWidth 1 | Stroke Color ' .. th.accent .. ',190')
     for i = 0, 5 do setOpt('ColHead' .. i, 'FontColor', th.head); setOpt('ColHead' .. i, 'InlineSetting', 'Color | ' .. th.accent .. ',255'); setOpt('ColHead' .. i, 'InlinePattern', '·.*') end
-    for i = 0, 5 do setOpt('ColWx' .. i, 'FontColor', '235,238,245,150') end
+    for i = 0, 5 do setOpt('ColWx' .. i, 'FontColor', '' .. C.text .. ',150') end
 end
 
 layout = function()
@@ -1213,7 +1229,7 @@ layout = function()
     setOpt('FixedBg', 'X', fx); setOpt('FixedBg', 'Y', fy)
     setOpt('FixedBg', 'Shape', 'Rectangle 0,0,' .. fw .. ',' .. fh .. ',' .. rnd(12 * scale)
         .. ' | Fill Color 40,44,64,120 | StrokeWidth ' .. math.max(1, rnd(1 * scale))
-        .. ' | Stroke Color 176,158,255,60')
+        .. ' | Stroke Color ' .. C.accent .. ',60')
     show('FixedBg')
     setOpt('FixedTitle', 'Text', '常驻')
     setOpt('FixedTitle', 'X', fx + fw / 2)
@@ -1223,7 +1239,7 @@ layout = function()
     setOpt('FixedTitle', 'FontColor', themeColors().accent .. ',240')
     show('FixedTitle')
     setOpt('FixedDivider', 'X', fx + fw + rnd(gapX / 2 - 1)); setOpt('FixedDivider', 'Y', fy)
-    setOpt('FixedDivider', 'Shape', 'Rectangle 0,0,1,' .. fh .. ',0 | Fill Color 176,158,255,50 | StrokeWidth 0')
+    setOpt('FixedDivider', 'Shape', 'Rectangle 0,0,1,' .. fh .. ',0 | Fill Color ' .. C.accent .. ',50 | StrokeWidth 0')
     show('FixedDivider')
     -- 透明 hover 条：盖住卡片右侧到分隔线之间的空隙，让进度条所在区域仍然算「在常驻区里」
     -- 点击区：从卡片右缘开始，向右多留 10px（仍在分隔线左侧），并可按 #HITDBG# 显示出来
@@ -1232,7 +1248,7 @@ layout = function()
     -- 进度条就在卡片右侧空隙的中线上，判定区以它为中心
     local hoverX = margin + cardW + gapX / 2 - hoverW / 2
     setOpt('FixedHover', 'X', hoverX); setOpt('FixedHover', 'Y', header)
-    setOpt('FixedHover', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. fh .. ' | Fill Color 176,158,255,' .. dbgA .. ' | StrokeWidth 0')
+    setOpt('FixedHover', 'Shape', 'Rectangle 0,0,' .. hoverW .. ',' .. fh .. ' | Fill Color ' .. C.accent .. ',' .. dbgA .. ' | StrokeWidth 0')
     show('FixedHover')
     setOpt('Panel', 'Shape', 'Rectangle 0,0,' .. (w - 1) .. ',' .. (h - 1) .. ',' .. rnd(16 * scale) .. ' | Fill LinearGradient 2 | StrokeWidth 1 | Stroke LinearGradient 1')
     local mg = rnd(28 * scale)
@@ -1255,8 +1271,8 @@ layout = function()
     if nextX > maxX then nextX = maxX end
     setOpt('PrevBtn', 'X', prevX); setOpt('PrevBtn', 'Y', rnd(116 * scale)); setOpt('PrevBtn', 'FontSize', rnd(14 * scale))
     setOpt('NextBtn', 'X', nextX); setOpt('NextBtn', 'Y', rnd(116 * scale)); setOpt('NextBtn', 'FontSize', rnd(14 * scale))
-    setOpt('PrevBtn', 'FontColor', page < PAGE_MAX and '235,238,245,230' or '235,238,245,102')
-    setOpt('NextBtn', 'FontColor', page > 0 and '235,238,245,230' or '235,238,245,102')
+    setOpt('PrevBtn', 'FontColor', page < PAGE_MAX and '' .. C.text .. ',230' or '' .. C.text .. ',102')
+    setOpt('NextBtn', 'FontColor', page > 0 and '' .. C.text .. ',230' or '' .. C.text .. ',102')
     setOpt('PrevHit', 'X', prevX - rnd(12 * scale)); setOpt('PrevHit', 'Y', rnd(104 * scale))
     setOpt('NextHit', 'X', nextX - rnd(12 * scale)); setOpt('NextHit', 'Y', rnd(104 * scale))
     setOpt('PrevHit', 'Shape', 'Rectangle 0,0,' .. rnd(24 * scale) .. ',' .. rnd(24 * scale) .. ' | Fill Color 0,0,0,1 | StrokeWidth 0')
@@ -1338,7 +1354,7 @@ layout = function()
             local isToday = (d == today)
             setOpt(m, 'X', rnd(dx)); setOpt(m, 'Y', rnd(dy))
             setOpt(m, 'FontSize', rnd(8 * scale))
-            setOpt(m, 'FontColor', isToday and '36,30,62,255' or '235,238,245,220')
+            setOpt(m, 'FontColor', isToday and '36,30,62,255' or '' .. C.text .. ',220')
             setOpt(m, 'Text', tostring(d))
             show(m)
             local hol = cnFor(currentMonthKey(), d)
@@ -1369,7 +1385,7 @@ layout = function()
             setOpt(m, 'FontSize', rnd(9 * scale))
             local hol = holidayOf(colDate(i + 1))
             setOpt(m, 'Text', colLabel(i + 1) .. (hol ~= '' and (' · ' .. hol) or ''))
-            if colDate(i + 1) == todayStr() then setOpt(m, 'FontColor', themeColors().accent .. ',255') else setOpt(m, 'FontColor', '235,238,245,204') end
+            if colDate(i + 1) == todayStr() then setOpt(m, 'FontColor', themeColors().accent .. ',255') else setOpt(m, 'FontColor', '' .. C.text .. ',204') end
             setOpt(wm, 'X', cx); setOpt(wm, 'Y', topBar + rnd(30 * scale))
             setOpt(wm, 'FontSize', rnd(8 * scale))
             setOpt(wm, 'Text', wxFor(i + 1))
@@ -1427,7 +1443,7 @@ layout = function()
         setOpt('AddBtn', 'Shape', 'Ellipse ' .. rnd(17 * scale) .. ',' .. rnd(17 * scale) .. ',' .. rnd(17 * scale) .. ' | Fill Color 110,110,120,30 | StrokeWidth 1 | Stroke Color 150,150,160,90')
         setOpt('AddText', 'FontColor', '120,120,130,140')
     else
-        setOpt('AddText', 'FontColor', '235,238,245,255')
+        setOpt('AddText', 'FontColor', '' .. C.text .. ',255')
     end
     -- 标题下的新建区
     local zw = rnd(160 * scale)
@@ -1486,6 +1502,7 @@ end
 
 
 function boot()
+    loadPalette()
     resolvePaths()
     loadAuto()
     notes = {}; count = 0; cols = 2; gridRows = 1; scale = 1; page = 0; theme = 1
@@ -1762,7 +1779,7 @@ local function snapValue(v, maxS)
 end
 
 local HANDLE_FREE = 'Ellipse 8,8,8 | Fill Color 255,255,255,90 | StrokeWidth 1 | Stroke Color 255,255,255,170'
-local HANDLE_SNAP = 'Ellipse 8,8,8 | Fill Color 176,158,255,230 | StrokeWidth 1 | Stroke Color 176,158,255,255'
+local HANDLE_SNAP = 'Ellipse 8,8,8 | Fill Color ' .. C.accent .. ',230 | StrokeWidth 1 | Stroke Color ' .. C.accent .. ',255'
 
 function scaleTipShow(v)
     setOpt('Handle', 'Shape', HANDLE_SNAP)
@@ -1810,7 +1827,7 @@ function drag(x, y)
             local ddx, ddy = x - downX, y - downY
             if math.sqrt(ddx * ddx + ddy * ddy) < 6 then return end
             pending = false
-            setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 120,220,255,170')
+            setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color ' .. C.accentBlue .. ',170')
             setOpt('GhostName', 'Text', '新便签')
             hide('GhostText')
             show('GhostCard'); show('GhostName')
@@ -1828,7 +1845,7 @@ function drag(x, y)
             local fr = fixedSlotAt(y)
             newFixedSlot = fr
             setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
-                .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
+                .. ' | Fill Color ' .. C.accent .. ',30 | StrokeWidth 2 | Stroke Color ' .. C.accent .. ',200')
             setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + math.min(math.max(0, (rows or 1) - 1), math.max(0, fr - (FIXUI and FIXUI.scroll or 0) - 1)) * pitch)
             show('DropHint')
             SKIN:Bang('!UpdateMeter', 'DropHint')
@@ -1840,7 +1857,7 @@ function drag(x, y)
         if not boardYOk(y) then ok = false; c, r = nil, nil end
         if ok and c and r then
             local _, cardW = metrics()
-            setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+            setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color ' .. C.accentBlue .. ',28 | StrokeWidth 2 | Stroke Color ' .. C.accentBlue .. ',190')
             local hx, hy = slotPos(r, c)
             setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
             show('DropHint')
@@ -1881,7 +1898,7 @@ function drag(x, y)
         local fr = fixedSlotAt(y)
         hintFixedSlot = fr
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
-            .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
+            .. ' | Fill Color ' .. C.accent .. ',30 | StrokeWidth 2 | Stroke Color ' .. C.accent .. ',200')
         setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + math.min(math.max(0, (rows or 1) - 1), math.max(0, fr - (FIXUI and FIXUI.scroll or 0) - 1)) * pitch)
         show('DropHint')
         SKIN:Bang('!UpdateMeter', 'DropHint')
@@ -1895,7 +1912,7 @@ function drag(x, y)
         dragCol = c
         local margin, cardW, gapX = metrics()
         local hx, hy = slotPos(r, c)
-        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color ' .. C.accentBlue .. ',28 | StrokeWidth 2 | Stroke Color ' .. C.accentBlue .. ',190')
         setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
         show('DropHint')
         hintValid = true
@@ -3120,7 +3137,7 @@ function favRender()
 
     setOpt('FavPanel', 'X', px); setOpt('FavPanel', 'Y', py)
     setOpt('FavPanel', 'Shape', 'Rectangle 0,0,' .. pw .. ',' .. ph .. ',' .. rnd(14 * scale)
-        .. ' | Fill Color 30,34,54,250 | StrokeWidth 1 | Stroke Color 176,158,255,70')
+        .. ' | Fill Color 30,34,54,250 | StrokeWidth 1 | Stroke Color ' .. C.accent .. ',70')
     show('FavPanel')
 
     setOpt('FavTitle', 'X', px + rnd(18 * scale)); setOpt('FavTitle', 'Y', py + rnd(16 * scale))
@@ -3177,11 +3194,11 @@ function favRender()
     if maxScroll > 0 then
         setOpt('FavPrev', 'X', px + pw - rnd(64 * scale)); setOpt('FavPrev', 'Y', py + rnd(18 * scale))
         setOpt('FavPrev', 'Text', '▲'); setOpt('FavPrev', 'FontSize', rnd(9 * scale))
-        setOpt('FavPrev', 'FontColor', scroll > 0 and '235,238,245,230' or '235,238,245,70')
+        setOpt('FavPrev', 'FontColor', scroll > 0 and '' .. C.text .. ',230' or '' .. C.text .. ',70')
         show('FavPrev')
         setOpt('FavNext', 'X', px + pw - rnd(46 * scale)); setOpt('FavNext', 'Y', py + rnd(18 * scale))
         setOpt('FavNext', 'Text', '▼'); setOpt('FavNext', 'FontSize', rnd(9 * scale))
-        setOpt('FavNext', 'FontColor', scroll < maxScroll and '235,238,245,230' or '235,238,245,70')
+        setOpt('FavNext', 'FontColor', scroll < maxScroll and '' .. C.text .. ',230' or '' .. C.text .. ',70')
         show('FavNext')
     else
         hide('FavPrev'); hide('FavNext')
@@ -3196,9 +3213,9 @@ function favRender()
         local thumbY = barY + rnd((barH - thumbH) * (scroll / maxScroll))
         FAVUI.bar = { y = barY, h = barH, thumbH = thumbH }
         setOpt('FavBar', 'X', barX); setOpt('FavBar', 'Y', barY)
-        setOpt('FavBar', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. barH .. ',' .. rnd(2 * scale) .. ' | Fill Color 235,238,245,40 | StrokeWidth 0')
+        setOpt('FavBar', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. barH .. ',' .. rnd(2 * scale) .. ' | Fill Color ' .. C.text .. ',40 | StrokeWidth 0')
         setOpt('FavBarThumb', 'X', barX); setOpt('FavBarThumb', 'Y', thumbY)
-        setOpt('FavBarThumb', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color 176,158,255,200 | StrokeWidth 0')
+        setOpt('FavBarThumb', 'Shape', 'Rectangle 0,0,' .. rnd(4 * scale) .. ',' .. thumbH .. ',' .. rnd(2 * scale) .. ' | Fill Color ' .. C.accent .. ',200 | StrokeWidth 0')
         show('FavBar'); show('FavBarThumb')
     else
         hide('FavBar'); hide('FavBarThumb')
@@ -3298,7 +3315,7 @@ function newZoneReset()
     local textA = dim and 90 or 255
     setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. lastZone.w .. ',' .. lastZone.h .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,' .. strokeA)
     setOpt('NewZoneText', 'Text', '拖出新便签')
-    setOpt('NewZoneText', 'FontColor', '235,238,245,' .. textA)
+    setOpt('NewZoneText', 'FontColor', '' .. C.text .. ',' .. textA)
     SKIN:Bang('!UpdateMeter', 'NewZone')
     SKIN:Bang('!UpdateMeter', 'NewZoneText')
 end
@@ -3334,7 +3351,7 @@ function favDragStart(i)
     FAVUI.moved = false
     FAVUI.dragText = it.text
     FAVUI.dragName = it.name
-    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color ' .. C.accent .. ',170')
     setOpt('GhostName', 'Text', it.name)
     setOpt('GhostText', 'Text', it.text)
     setOpt('GhostName', 'X', lastDragX and (lastDragX - rnd(60 * scale)) or 200)
@@ -3377,14 +3394,14 @@ function dragFav(x, y)
         return
     end
     favZonePaint(true)
-    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 176,158,255,170')
+    setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. gw .. ',' .. gh .. ',' .. rnd(6 * scale) .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color ' .. C.accent .. ',170')
     if fixedHit(x, y) then
         -- 指向常驻区：预览框落在常驻区的下一个空位，而不是时间列
         local margin, cardW, gapX, header = metrics()
         local fr = fixedSlotAt(y)
         FAVUI.dropPinSlot = fr
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
-            .. ' | Fill Color 176,158,255,30 | StrokeWidth 2 | Stroke Color 176,158,255,200')
+            .. ' | Fill Color ' .. C.accent .. ',30 | StrokeWidth 2 | Stroke Color ' .. C.accent .. ',200')
         setOpt('DropHint', 'X', margin); setOpt('DropHint', 'Y', header + math.min(math.max(0, (rows or 1) - 1), math.max(0, fr - (FIXUI and FIXUI.scroll or 0) - 1)) * pitch)
         show('DropHint')
         setOpt('GhostCard', 'X', gx); setOpt('GhostCard', 'Y', gy)
@@ -3403,7 +3420,7 @@ function dragFav(x, y)
         -- 和拖便签一致：高亮目标格，而不是整列
         local _, cardW = metrics()
         local hx, hy = slotPos(r, c)
-        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+        setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale) .. ' | Fill Color ' .. C.accentBlue .. ',28 | StrokeWidth 2 | Stroke Color ' .. C.accentBlue .. ',190')
         setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
         show('DropHint')
         SKIN:Bang('!UpdateMeter', 'DropHint')
@@ -3483,13 +3500,13 @@ end
 function favDimTop(on)
     FAVUI.dimTop = on and true or false
     if on then
-        setOpt('NewZoneText', 'FontColor', '235,238,245,90')
-        setOpt('NewZoneHint', 'FontColor', '235,238,245,50')
+        setOpt('NewZoneText', 'FontColor', '' .. C.text .. ',90')
+        setOpt('NewZoneHint', 'FontColor', '' .. C.text .. ',50')
         setOpt('FavBtn', 'FontColor', themeColors().accent .. ',110')
         setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. (lastZone and lastZone.w or 178) .. ',' .. (lastZone and lastZone.h or 44) .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,12')
     else
-        setOpt('NewZoneText', 'FontColor', '235,238,245,255')
-        setOpt('NewZoneHint', 'FontColor', '235,238,245,110')
+        setOpt('NewZoneText', 'FontColor', '' .. C.text .. ',255')
+        setOpt('NewZoneHint', 'FontColor', '' .. C.text .. ',110')
         setOpt('NewZone', 'Shape', 'Rectangle 0,0,' .. (lastZone and lastZone.w or 178) .. ',' .. (lastZone and lastZone.h or 44) .. ',6 | Fill Color 0,0,0,1 | StrokeWidth 1 | Stroke Color 255,255,255,30')
         setOpt('FavBtn', 'FontColor', themeColors().accent .. ',255')
     end
@@ -3545,7 +3562,7 @@ function dragCopy(x, y)
     if not n then return end
     ghostX = x - rnd(80 * scale); ghostY = y - rnd(20 * scale)
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale)
-        .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color 120,220,255,200')
+        .. ' | Fill Color 40,36,70,210 | StrokeWidth 1 | Stroke Color ' .. C.accentBlue .. ',200')
     setOpt('GhostName', 'Text', n.name)
     setOpt('GhostText', 'Text', n.text)
     setOpt('GhostCard', 'X', ghostX); setOpt('GhostCard', 'Y', ghostY)
@@ -3558,7 +3575,7 @@ function dragCopy(x, y)
     if ok and c and c >= 1 then
         local margin, cardW, gapX = metrics()
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
-            .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+            .. ' | Fill Color ' .. C.accentBlue .. ',28 | StrokeWidth 2 | Stroke Color ' .. C.accentBlue .. ',190')
         local hx, hy = slotPos(r, c)
         setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
         show('DropHint')
@@ -3615,7 +3632,7 @@ function beginFavCopy(i)
     if not it then return end
     FAVUI.favCopy = { i = n, idx = idx, pending = true, moved = false }
     setOpt('GhostCard', 'Shape', 'Rectangle 0,0,' .. rnd(160 * scale) .. ',' .. rnd(40 * scale) .. ',' .. rnd(6 * scale)
-        .. ' | Fill Color 34,44,58,210 | StrokeWidth 1 | Stroke Color 120,220,255,190')
+        .. ' | Fill Color 34,44,58,210 | StrokeWidth 1 | Stroke Color ' .. C.accentBlue .. ',190')
     setOpt('GhostName', 'Text', it.name)
     setOpt('GhostText', 'Text', it.text)
     setOpt('GhostName', 'FontSize', rnd(9 * scale))
@@ -3645,7 +3662,7 @@ function dragFavCopy(x, y)
         local _, cardW = metrics()
         local hx, hy = slotPos(r, c)
         setOpt('DropHint', 'Shape', 'Rectangle 0,0,' .. cardW .. ',' .. cardH .. ',' .. rnd(12 * scale)
-            .. ' | Fill Color 120,220,255,28 | StrokeWidth 2 | Stroke Color 120,220,255,190')
+            .. ' | Fill Color ' .. C.accentBlue .. ',28 | StrokeWidth 2 | Stroke Color ' .. C.accentBlue .. ',190')
         setOpt('DropHint', 'X', hx); setOpt('DropHint', 'Y', hy)
         show('DropHint')
         FAVUI.favCopy.col, FAVUI.favCopy.row = c, r
