@@ -213,7 +213,11 @@ local function serialize()
     local rw = math.max(1, rows or 1)
     body = body .. string.format('#grid cols=%d rows=%d scale=%.2f\r\n', cols, rw, scale)
     body = body .. string.format('#theme %d\r\n#page %d\r\n', theme, page)
-    for d in pairs(autoskips) do body = body .. '#autoskip ' .. d .. '\r\n' end
+    for d in pairs(autoskips) do
+        local base, nm = d:match('^(%d%d%d%d%-%d%d%-%d%d)|(.*)$')
+        if base then body = body .. '#autoskip ' .. base .. '\t' .. nm .. '\r\n'
+        else body = body .. '#autoskip ' .. d .. '\r\n' end
+    end
     for i = 1, count do
         local n = notes[i]
         body = body .. n.date .. '\t' .. clean(n.name) .. '\t' .. clean(n.text) .. '\t' .. ((n.src == 'ai' and 'ai') or (n.src == 'auto' and 'auto') or 'user') .. '\t' .. tostring(clamp(tonumber(n.theme) or 1, 1, 4)) .. (n.pin and '\t1' or ((n.img or n.locked) and '\t' or ''))
@@ -324,8 +328,11 @@ local function parse(data)
             local th = l:match('#theme%s+(%d+)')
             if th then gtheme = tonumber(th) end
             local pg = l:match('#page%s+(%d+)')
-            local sk = l:match('#autoskip%s+(%d%d%d%d%-%d%d%-%d%d)')
-            if sk then autoskips[sk] = true end
+            local sk, skn = l:match('#autoskip%s+(%d%d%d%d%-%d%d%-%d%d)%s*(.*)$')
+            if sk then
+                skn = tostring(skn or ''):gsub('%s+$', '')
+                if skn ~= '' then autoskips[sk .. '|' .. skn] = true else autoskips[sk] = true end
+            end
             if pg then gpage = tonumber(pg) end
         elseif l ~= '' then
             if #list < MAXN then
@@ -1408,6 +1415,63 @@ layout = function()
             hide(m)
         end
     end
+    -- ===== 自动便签抑制面板 =====
+    do
+        if SKIPUI and SKIPUI.open and SKIPUI.col and SKIPUI.col >= 1 and SKIPUI.col <= cols then
+            local c = SKIPUI.col
+            local d = colDate(c)
+            local list = rulesForDate(d)
+            local pw = 184
+            local ph = 30 + math.max(1, #list) * 22 + 26 + 20
+            local px = margin + fixedW() + (c - 1) * (cardW + gapX)
+            if px + pw > w - 4 then px = w - pw - 4 end
+            if px < 4 then px = 4 end
+            local py = topBar + rnd(38 * scale)
+            if py + ph > h - 4 then py = math.max(4, h - ph - 4) end
+            show('SkipMask')
+            setOpt('SkipMask', 'W', w); setOpt('SkipMask', 'H', h)
+            setOpt('SkipPanelBg', 'X', px); setOpt('SkipPanelBg', 'Y', py)
+            setOpt('SkipPanelBg', 'Shape', 'Rectangle 0,0,' .. pw .. ',' .. ph .. ',10 | Fill Color 26,30,50,242 | StrokeWidth 1 | Stroke Color ' .. C.accent .. ',90')
+            show('SkipPanelBg')
+            setOpt('SkipPanelTitle', 'X', px + 12); setOpt('SkipPanelTitle', 'Y', py + 9)
+            setOpt('SkipPanelTitle', 'Text', dateLabel(d) .. ' · 自动便签')
+            show('SkipPanelTitle')
+            for k = 0, 3 do
+                local m = 'SkipRow' .. k
+                local it = list[k + 1]
+                if it then
+                    local on = autoskips[d .. '|' .. it.name] or autoskips[d]
+                    setOpt(m, 'X', px + 12); setOpt(m, 'Y', py + 32 + k * 22)
+                    setOpt(m, 'Text', (on and '×  ' or '●  ') .. it.name)
+                    setOpt(m, 'FontColor', on and '150,146,178,200' or (C.text .. ',255'))
+                    show(m)
+                else
+                    hide(m)
+                end
+            end
+            if #list == 0 then
+                setOpt('SkipHint', 'X', px + 12); setOpt('SkipHint', 'Y', py + 32)
+                setOpt('SkipHint', 'Text', '这一天没有自动规则')
+                show('SkipHint')
+                hide('SkipAllBtn')
+            else
+                local allOn = autoskips[d]
+                setOpt('SkipAllBtn', 'X', px + 12); setOpt('SkipAllBtn', 'Y', py + 32 + #list * 22 + 4)
+                setOpt('SkipAllBtn', 'Text', allOn and '恢复整日自动便签' or '整日抑制')
+                setOpt('SkipAllBtn', 'FontColor', allOn and '255,180,120,255' or '190,184,220,220')
+                show('SkipAllBtn')
+                setOpt('SkipHint', 'X', px + 12); setOpt('SkipHint', 'Y', py + 32 + #list * 22 + 30)
+                setOpt('SkipHint', 'Text', '点空白关闭')
+                show('SkipHint')
+            end
+        else
+            hide('SkipMask')
+            hide('SkipPanelBg'); hide('SkipPanelTitle')
+            for k = 0, 3 do hide('SkipRow' .. k) end
+            hide('SkipAllBtn'); hide('SkipHint')
+        end
+    end
+
     -- 卡片
     for i = 1, MAXN do hideCard(i) end
     for cc = 1, cols do
@@ -1569,7 +1633,11 @@ function del(i)
     i = tonumber(i) or sel
     if not canEdit() then return end
     if i < 1 or i > count then return end
-    if notes[i].src == 'auto' then autoskips[notes[i].date] = true end
+    if notes[i].src == 'auto' then
+        local nm = notes[i].name
+        if nm and nm ~= '' then autoskips[notes[i].date .. '|' .. nm] = true
+        else autoskips[notes[i].date] = true end
+    end
     table.remove(notes, i)
     count = count - 1
     gridRows = math.max(1, math.ceil(count / cols))
@@ -2147,7 +2215,7 @@ function pickImgStart(i)
     if f then
         f:write('#imgpick ' .. i .. '\r\n#name ' .. clean(notes[i].name)
             .. '\r\n#pos ' .. rnd(mx) .. ' ' .. rnd(my) .. '\r\n#img ' .. (notes[i].img or '-') .. '\r\n#theme ' .. (tonumber(notes[i].theme) or 1) .. '\r\n#locked ' .. (notes[i].locked and '1' or '0')
-            .. '\r\n#sw1 ' .. THEMES[1].accent .. '\r\n#sw2 ' .. THEMES[2].accent
+            .. '\r\n#src ' .. (notes[i].src or 'user') .. '\r\n#sw1 ' .. THEMES[1].accent .. '\r\n#sw2 ' .. THEMES[2].accent
             .. '\r\n#sw3 ' .. THEMES[3].accent .. '\r\n#sw4 ' .. THEMES[4].accent .. '\r\n')
         f:close()
     end
@@ -2181,6 +2249,12 @@ function imgPickTick()
     i = tonumber(i)
     if not i or not notes[i] then return end
     if val ~= 'lock:0' and notes[i].src == 'auto' then notes[i].locked = true end
+    if val == 'lock:1' then
+        notes[i].locked = true
+        writeAll(); layout()
+        SKIN:Bang('!Log', '已锁定：' .. i, 'Notice')
+        return
+    end
     if val == 'lock:0' then
         notes[i].locked = nil
         writeAll(); layout()
@@ -2400,7 +2474,9 @@ function drop(mx, my)
     -- an auto note dragged off its date counts as deleting it: suppress that date
     for _, s in ipairs(snap) do
         if s.note and s.note.src == 'auto' and s.note.date ~= s.date then
-            autoskips[s.date] = true
+            local nm = s.note.name
+            if nm and nm ~= '' then autoskips[s.date .. '|' .. nm] = true
+            else autoskips[s.date] = true end
         end
     end
     hideGhost()
@@ -2755,7 +2831,7 @@ function autoGen()
                     local rule = autoRules[ridx] or autoRules[1]
                     name, text = rule.name, rule.text
                 end
-                if name and name ~= '' then
+                if name and name ~= '' and not autoskips[d .. '|' .. name] then
                     local dup = false
                     for _, c2 in ipairs(cands) do if c2.name == name then dup = true end end
                     for i2 = 1, count do
@@ -2838,12 +2914,129 @@ function menuCity() editCity() end
 -- 清除当前可见日期的「不再自动生成」标记，并立即补齐
 function clearSkip()
     for c = 1, cols do
-        autoskips[colDate(c)] = nil
+        local d = colDate(c)
+        autoskips[d] = nil
+        for k in pairs(autoskips) do
+            if k:sub(1, #d + 1) == d .. '|' then autoskips[k] = nil end
+        end
     end
     writeAll()
     autoGen()
     layout()
     SKIN:Bang('!Log', 'clearSkip: 已恢复可见日期的自动便签', 'Notice')
+end
+
+-- ===== 自动便签抑制面板（列头点击） =====
+SKIPUI = { open = false, col = 0 }
+
+function rulesForDate(d)
+    loadAuto()
+    local out = {}
+    if not autoModes then return out end
+    local dc0 = dateDiff(autoBase, d)
+    local day = tonumber(d:sub(9, 10)) or 1
+    for _, m in ipairs(autoModes) do
+        local name, text
+        if m == 'interval' then
+            if ((dc0 % autoInterval) + autoInterval) % autoInterval == 0 then
+                name, text = autoTName, autoTText
+            end
+        elseif m == 'date' then
+            if day == autoDDay then name, text = autoDName, autoDText end
+        elseif m == 'monthly' then
+            local ridx = ((day - 1) % autoCycle) + 1
+            local rule = autoRules[ridx] or autoRules[1]
+            name, text = rule.name, rule.text
+        else
+            local ridx = ((dc0 % autoCycle) + autoCycle) % autoCycle + 1
+            local rule = autoRules[ridx] or autoRules[1]
+            name, text = rule.name, rule.text
+        end
+        if name and name ~= '' then
+            local dup = false
+            for _, x in ipairs(out) do if x.name == name then dup = true end end
+            if not dup then out[#out + 1] = { name = name, text = text, mode = m } end
+        end
+    end
+    return out
+end
+
+function removeAutoOf(d, name)
+    for i = count, 1, -1 do
+        local n = notes[i]
+        if n.date == d and n.src == 'auto' and (not name or n.name == name) then
+            table.remove(notes, i)
+            count = count - 1
+        end
+    end
+    if count == 0 then sel = -1 elseif sel > count then sel = count end
+    editIdx = -1
+end
+
+function toggleSkipAt(c, name)
+    c = tonumber(c); name = tostring(name or '')
+    if not c or c < 1 or c > cols then return end
+    local d = colDate(c)
+    local key = d .. '|' .. name
+    if autoskips[key] then
+        autoskips[key] = nil
+    else
+        autoskips[key] = true
+        autoskips[d] = nil
+        removeAutoOf(d, name)
+    end
+    writeAll(); autoGen(); layout()
+    SKIN:Bang('!Log', '抑制切换 ' .. d .. ' ' .. name, 'Notice')
+end
+
+function toggleSkipAll(c)
+    c = tonumber(c)
+    if not c or c < 1 or c > cols then return end
+    local d = colDate(c)
+    if autoskips[d] then
+        autoskips[d] = nil
+    else
+        autoskips[d] = true
+        for k in pairs(autoskips) do
+            if k:sub(1, #d + 1) == d .. '|' then autoskips[k] = nil end
+        end
+        removeAutoOf(d, nil)
+    end
+    writeAll(); autoGen(); layout()
+    SKIN:Bang('!Log', '整日抑制切换 ' .. d, 'Notice')
+end
+
+function skipMenu(c)
+    c = tonumber(c) or 0
+    if SKIPUI.open and SKIPUI.col == c then
+        SKIPUI.open = false
+    else
+        SKIPUI.open = true
+        SKIPUI.col = c
+    end
+    layout()
+    SKIN:Bang('!Redraw')
+end
+
+function skipClose()
+    SKIPUI.open = false
+    layout()
+    SKIN:Bang('!Redraw')
+end
+
+function toggleSkipRow(row)
+    row = tonumber(row) or 0
+    if not SKIPUI.open or SKIPUI.col < 1 then return end
+    local d = colDate(SKIPUI.col)
+    local list = rulesForDate(d)
+    local it = list[row + 1]
+    if not it then return end
+    toggleSkipAt(SKIPUI.col, it.name)
+end
+
+function toggleSkipAllCur()
+    if not SKIPUI.open or SKIPUI.col < 1 then return end
+    toggleSkipAll(SKIPUI.col)
 end
 
 local WX = { ww = 0, wl = 0, sW = 1, sL = 1 }
